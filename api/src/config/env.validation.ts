@@ -20,6 +20,19 @@ export const envValidationSchema = Joi.object({
   JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
   JWT_REFRESH_MAX_AGE_MS: Joi.number().integer().positive().default(604800000),
   ADMIN_INITIAL_PASSWORD: Joi.string().min(8).allow('').optional(),
+  SMTP_HOST: Joi.string().required(),
+  SMTP_PORT: Joi.number().port().required(),
+  SMTP_SECURE: Joi.boolean().required(),
+  SMTP_USER: Joi.string().allow('').optional(),
+  SMTP_PASSWORD: Joi.string().allow('').optional(),
+  SMTP_FROM_NAME: Joi.string().required(),
+  SMTP_FROM_EMAIL: Joi.string()
+    .email({ tlds: { allow: false } })
+    .required(),
+  EMAIL_VERIFICATION_EXPIRES_IN_MINUTES: Joi.number()
+    .integer()
+    .positive()
+    .required(),
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().port().required(),
 });

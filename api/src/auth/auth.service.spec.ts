@@ -6,6 +6,7 @@ import { UserRole } from '../common/enums/user-role.enum';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { AuthService } from './auth.service';
+import { MailService } from '../mail/mail.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -17,6 +18,11 @@ describe('AuthService', () => {
       | 'findByIdWithRefreshToken'
       | 'setRefreshTokenHash'
       | 'toPublic'
+      | 'saveVerificationToken'
+      | 'findByVerificationHash'
+      | 'confirmEmail'
+      | 'normalizeEmail'
+      | 'findByEmail'
     >
   >;
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync' | 'verifyAsync'>>;
@@ -30,6 +36,10 @@ describe('AuthService', () => {
     updatedAt: new Date(),
     passwordHash: '',
     refreshTokenHash: null,
+    emailVerifiedAt: new Date(),
+    emailVerificationTokenHash: null,
+    emailVerificationExpiresAt: null,
+    emailVerificationSentAt: null,
   } as User;
 
   beforeEach(() => {
@@ -38,6 +48,11 @@ describe('AuthService', () => {
       findByEmailWithSecrets: jest.fn(),
       findByIdWithRefreshToken: jest.fn(),
       setRefreshTokenHash: jest.fn(),
+      saveVerificationToken: jest.fn(),
+      findByVerificationHash: jest.fn(),
+      confirmEmail: jest.fn(),
+      normalizeEmail: jest.fn((email: string) => email.trim().toLowerCase()),
+      findByEmail: jest.fn(),
       toPublic: jest.fn((user: User) => ({
         id: user.id,
         name: user.name,
@@ -62,18 +77,21 @@ describe('AuthService', () => {
             JWT_ACCESS_EXPIRES_IN: '15m',
             JWT_REFRESH_SECRET: 'b'.repeat(32),
             JWT_REFRESH_EXPIRES_IN: '7d',
+            EMAIL_VERIFICATION_EXPIRES_IN_MINUTES: 30,
           })[key],
       ),
     } as unknown as ConfigService;
+    const mail = { sendEmailVerification: jest.fn() } as unknown as MailService;
     service = new AuthService(
       users as unknown as UsersService,
       jwt as unknown as JwtService,
       config,
+      mail,
     );
   });
 
-  it('cadastra como VIEWER e não expõe hashes', async () => {
-    users.create.mockResolvedValue(baseUser);
+  it('cadastra como VIEWER sem autenticar e armazena apenas o hash do token', async () => {
+    users.create.mockResolvedValue({ ...baseUser, emailVerifiedAt: null });
     const result = await service.register({
       name: 'Francisco',
       email: 'FRANCISCO@example.com ',
@@ -85,11 +103,17 @@ describe('AuthService', () => {
       expect.any(String),
       UserRole.VIEWER,
     );
-    expect(result).not.toHaveProperty('user.passwordHash');
-    expect(result).not.toHaveProperty('user.refreshTokenHash');
-    expect(users.setRefreshTokenHash).toHaveBeenCalledWith(
+    expect(result).toMatchObject({
+      requiresEmailVerification: true,
+      email: baseUser.email,
+    });
+    expect(result).not.toHaveProperty('accessToken');
+    expect(result).not.toHaveProperty('refreshToken');
+    expect(users.saveVerificationToken).toHaveBeenCalledWith(
       baseUser.id,
-      expect.any(String),
+      expect.stringMatching(/^[a-f0-9]{64}$/),
+      expect.any(Date),
+      expect.any(Date),
     );
   });
 

@@ -7,6 +7,8 @@ ERP com API NestJS, PostgreSQL/TypeORM e frontend React. A autenticação usa ac
 - Node.js 20+ e npm
 - Docker Desktop com Docker Compose v2
 
+O ambiente local também usa Mailpit como servidor SMTP de desenvolvimento.
+
 ## Preparação no PowerShell
 
 ```powershell
@@ -69,6 +71,38 @@ npm.cmd run dev
 - API: http://localhost:3000/api
 - Swagger: http://localhost:3000/api/docs
 - Health: http://localhost:3000/api/health
+- Mailpit: http://localhost:8025
+
+## Confirmação de e-mail com Mailpit
+
+Configure em `api/.env`:
+
+```env
+SMTP_HOST=localhost
+SMTP_PORT=1025
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM_NAME=OmniStock
+SMTP_FROM_EMAIL=no-reply@omnistock.local
+EMAIL_VERIFICATION_EXPIRES_IN_MINUTES=30
+```
+
+Suba e verifique os serviços:
+
+```powershell
+docker compose up -d
+docker compose ps
+docker compose logs -f mailpit
+```
+
+Cadastre-se em `http://localhost:5173/register`, abra `http://localhost:8025`, selecione o e-mail recebido e clique em **Confirmar meu e-mail**. O link abre `/verify-email`; depois disso, entre normalmente. Para testar o reenvio, acesse `/resend-verification`.
+
+Se a API passar a executar dentro do Compose, altere `SMTP_HOST` de `localhost` para `mailpit`. Para SMTP de produção, substitua host, porta, modo seguro e credenciais pelos valores do provedor; nenhuma alteração no código é necessária.
+
+O limite por IP usa o throttler do NestJS. O limite adicional de três solicitações por e-mail em 15 minutos e a trava de concorrência são mantidos em memória e servem a uma única instância. Ao escalar a API, esse estado deverá migrar para Redis.
+
+Se o SMTP falhar após o cadastro, o usuário é preservado e a API retorna uma mensagem sem detalhes técnicos, permitindo tentar o reenvio depois.
 
 ## Qualidade
 

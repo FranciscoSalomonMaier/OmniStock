@@ -1,0 +1,2 @@
+import { Link, useLocation } from 'react-router-dom'
+export function VerificationPendingPage() { const email = (useLocation().state as { email?: string } | null)?.email; return <><h1>Verifique seu e-mail</h1><p className="subtitle">Enviamos um link de confirmação{email ? ` para ${email}` : ''}. Verifique também a caixa de spam.</p><div className="auth-actions"><Link to="/resend-verification" state={{ email }}>Reenviar confirmação</Link><Link to="/login">Voltar ao login</Link></div></> }

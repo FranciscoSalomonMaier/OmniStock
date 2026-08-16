@@ -21,7 +21,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applySession, refreshSession])
   const value = useMemo<AuthContextValue>(() => ({ user, isAuthenticated: Boolean(user && accessToken), isLoading,
     login: async (input) => applySession(await authService.login(input)),
-    register: async (input) => applySession(await authService.register(input)),
+    register: (input) => authService.register(input),
     logout: async () => { try { await authService.logout() } finally { applySession(null) } }, refreshSession,
   }), [accessToken, applySession, isLoading, refreshSession, user])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

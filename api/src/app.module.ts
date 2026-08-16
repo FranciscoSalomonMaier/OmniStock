@@ -9,6 +9,8 @@ import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -23,8 +25,13 @@ import { UsersModule } from './users/users.module';
     }),
     UsersModule,
     AuthModule,
+    ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
   ],
   controllers: [AppController, HealthController],
-  providers: [AppService, HealthService],
+  providers: [
+    AppService,
+    HealthService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule {}

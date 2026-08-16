@@ -48,9 +48,46 @@ export class UsersService {
   findByEmailWithSecrets(email: string): Promise<User | null> {
     return this.users
       .createQueryBuilder('user')
-      .addSelect(['user.passwordHash', 'user.refreshTokenHash'])
+      .addSelect([
+        'user.passwordHash',
+        'user.refreshTokenHash',
+        'user.emailVerificationTokenHash',
+      ])
       .where('user.email = :email', { email: this.normalizeEmail(email) })
       .getOne();
+  }
+
+  findByEmail(email: string): Promise<User | null> {
+    return this.users.findOne({ where: { email: this.normalizeEmail(email) } });
+  }
+
+  findByVerificationHash(tokenHash: string): Promise<User | null> {
+    return this.users
+      .createQueryBuilder('user')
+      .addSelect('user.emailVerificationTokenHash')
+      .where('user.emailVerificationTokenHash = :tokenHash', { tokenHash })
+      .getOne();
+  }
+
+  async saveVerificationToken(
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+    sentAt: Date,
+  ): Promise<void> {
+    await this.users.update(id, {
+      emailVerificationTokenHash: tokenHash,
+      emailVerificationExpiresAt: expiresAt,
+      emailVerificationSentAt: sentAt,
+    });
+  }
+
+  async confirmEmail(id: string): Promise<void> {
+    await this.users.update(id, {
+      emailVerifiedAt: new Date(),
+      emailVerificationTokenHash: null,
+      emailVerificationExpiresAt: null,
+    });
   }
 
   findByIdWithRefreshToken(id: string): Promise<User | null> {

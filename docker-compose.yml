@@ -31,6 +31,19 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
+  mailpit:
+    image: axllent/mailpit:v1.27
+    container_name: omnistock-mailpit
+    restart: unless-stopped
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 volumes:
   postgres_data:
   redis_data:

@@ -26,6 +26,7 @@ async function seedAdmin(): Promise<void> {
       email,
       passwordHash: await hash(password, 12),
       role: UserRole.ADMIN,
+      emailVerifiedAt: new Date(),
     }),
   );
   console.log('Administrador de desenvolvimento criado.');

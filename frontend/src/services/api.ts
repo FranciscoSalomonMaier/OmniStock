@@ -8,7 +8,8 @@ let refreshPromise: Promise<boolean> | null = null
 
 export class ApiError extends Error {
   readonly status: number
-  constructor(message: string, status: number) { super(message); this.status = status }
+  readonly code?: string
+  constructor(message: string, status: number, code?: string) { super(message); this.status = status; this.code = code }
 }
 
 export function configureApiAuth(config: { getAccessToken: () => string | null; renewSession: () => Promise<boolean>; onSessionExpired: () => void }) {
@@ -43,7 +44,8 @@ async function parseResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const message = typeof data === 'object' && data !== null && 'message' in data
       ? (Array.isArray(data.message) ? data.message.join('. ') : String(data.message)) : 'Não foi possível concluir a solicitação'
-    throw new ApiError(message, response.status)
+    const code = typeof data === 'object' && data !== null && 'code' in data ? String(data.code) : undefined
+    throw new ApiError(message, response.status, code)
   }
   return data as T
 }
