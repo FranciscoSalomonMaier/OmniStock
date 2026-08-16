@@ -7,6 +7,8 @@ import { createDatabaseConfig } from './config/database.config';
 import { envValidationSchema } from './config/env.validation';
 import { HealthController } from './health/health.controller';
 import { HealthService } from './health/health.service';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { HealthService } from './health/health.service';
       inject: [ConfigService],
       useFactory: createDatabaseConfig,
     }),
+    UsersModule,
+    AuthModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, HealthService],
