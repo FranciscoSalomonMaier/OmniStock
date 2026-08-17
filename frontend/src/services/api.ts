@@ -5,6 +5,8 @@ let getAccessToken: () => string | null = () => null
 let renewSession: () => Promise<boolean> = async () => false
 let onSessionExpired: () => void = () => undefined
 let refreshPromise: Promise<boolean> | null = null
+let getCompanyId: () => string | null = () => localStorage.getItem('omnistock_company_id')
+export function configureApiCompany(getter:()=>string|null){getCompanyId=getter}
 
 export class ApiError extends Error {
   readonly status: number
@@ -34,6 +36,7 @@ async function send(path: string, options: ApiOptions): Promise<Response> {
   const headers = new Headers(options.headers)
   const token = getAccessToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
+  const companyId=getCompanyId(); if(companyId) headers.set('X-Company-Id',companyId)
   if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   return fetch(`${API_URL}${path}`, { ...options, headers, credentials: 'include' })
 }

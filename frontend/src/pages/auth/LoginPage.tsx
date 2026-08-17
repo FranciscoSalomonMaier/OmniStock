@@ -20,5 +20,5 @@ export function LoginPage() {
     <label htmlFor="password">Senha</label><input id="password" type="password" autoComplete="current-password" minLength={8} required value={password} onChange={(e) => setPassword(e.target.value)} />
     {error && <p className="form-error" role="alert">{error}</p>}{needsVerification && <Link className="resend-link" to="/resend-verification" state={{ email }}>Reenviar confirmação</Link>}
     <button type="submit" disabled={submitting}>{submitting ? 'Entrando...' : 'Entrar'}</button>
-  </form><p className="auth-link">Ainda não tem conta? <Link to="/register">Cadastre-se</Link></p></>
+  </form><p className="auth-link"><Link to="/forgot-password">Esqueci minha senha</Link></p><p className="auth-link">Ainda não tem conta? <Link to="/register">Cadastre-se</Link></p></>
 }

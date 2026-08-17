@@ -9,4 +9,6 @@ export const authService = {
   refresh: () => apiRequest<AuthResponse>('/auth/refresh', { method: 'POST', skipAuthRefresh: true }),
   logout: () => apiRequest<void>('/auth/logout', { method: 'POST', skipAuthRefresh: true }),
   me: () => apiRequest<User>('/auth/me'),
+  forgotPassword:(email:string)=>apiRequest<{message:string}>('/auth/forgot-password',{method:'POST',body:JSON.stringify({email}),skipAuthRefresh:true}),
+  resetPassword:(token:string,password:string,passwordConfirmation:string)=>apiRequest<{message:string}>('/auth/reset-password',{method:'POST',body:JSON.stringify({token,password,passwordConfirmation}),skipAuthRefresh:true}),
 }

@@ -60,6 +60,24 @@ export class User {
   })
   emailVerificationSentAt: Date | null;
 
+  @Column({
+    name: 'password_reset_token_hash',
+    type: 'varchar',
+    nullable: true,
+    select: false,
+  })
+  passwordResetTokenHash: string | null;
+
+  @Column({
+    name: 'password_reset_expires_at',
+    type: 'timestamp',
+    nullable: true,
+  })
+  passwordResetExpiresAt: Date | null;
+
+  @Column({ name: 'password_changed_at', type: 'timestamp', nullable: true })
+  passwordChangedAt: Date | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

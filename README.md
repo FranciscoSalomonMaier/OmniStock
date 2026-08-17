@@ -119,3 +119,33 @@ npm.cmd run build
 ```
 
 Para parar a infraestrutura sem apagar dados, use `docker compose down`. **Atenção:** `docker compose down -v` também remove os volumes e apaga os dados locais.
+
+## Etapa 4: empresas, permissões e senhas
+
+Execute a migration e, opcionalmente, o seed idempotente:
+
+```powershell
+cd api
+npm.cmd run migration:run
+npm.cmd run seed:admin
+```
+
+O seed cria explicitamente uma empresa de desenvolvimento e associa `admin@omnistock.local` como `ADMIN`. Usuários antigos não recebem associação automática pela migration.
+
+Depois do login, o frontend consulta `/api/companies`, permite criar/selecionar uma empresa e persiste somente seu UUID em `localStorage`. Requisições empresariais enviam `X-Company-Id`; o backend sempre revalida usuário, associação e empresa. Tokens nunca são armazenados no navegador.
+
+Permissões aplicadas nesta etapa:
+
+- Visualizar empresa: qualquer membro ativo.
+- Editar empresa: `ADMIN` e `MANAGER`.
+- Desativar empresa: somente `ADMIN`.
+- Listar/adicionar/alterar/desativar membros: `ADMIN` e `MANAGER`.
+- `MANAGER` não atribui nem altera `ADMIN`.
+- O último `ADMIN` ativo não pode ser rebaixado ou desativado.
+- `VIEWER` não executa operações de escrita.
+
+Para testar recuperação de senha, abra `/forgot-password`, informe o e-mail e consulte o Mailpit em `http://localhost:8025`. O link expira conforme `PASSWORD_RESET_EXPIRES_IN_MINUTES` e é de uso único. Alterar a senha em `/profile` revoga o refresh token e exige novo login.
+
+Rotas do frontend: `/companies`, `/companies/new`, `/settings/company`, `/settings/company/members` e `/profile`.
+
+Limitações: membros são associados somente quando já possuem usuário cadastrado; convite por e-mail não foi criado. O throttling em memória é adequado a uma instância e deve usar Redis quando a API for escalada. Não existem ainda entidades de produtos, estoque ou faturamento às quais aplicar `companyId`; toda futura entidade empresarial deve filtrar por `companyId` diretamente nas consultas.

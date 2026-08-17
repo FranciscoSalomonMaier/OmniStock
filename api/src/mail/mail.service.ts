@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
 import { verifyEmailTemplate } from './templates/verify-email.template';
+import { resetPasswordTemplate } from './templates/reset-password.template';
 
 @Injectable()
 export class MailService {
@@ -45,6 +46,30 @@ export class MailService {
         'Falha ao enviar e-mail de confirmação pelo SMTP configurado.',
       );
       throw new Error('MAIL_DELIVERY_FAILED');
+    }
+  }
+
+  async sendPasswordReset(
+    name: string,
+    email: string,
+    token: string,
+  ): Promise<void> {
+    const minutes = this.config.getOrThrow<number>(
+      'PASSWORD_RESET_EXPIRES_IN_MINUTES',
+    );
+    const url = `${this.config.getOrThrow<string>('FRONTEND_URL').replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(token)}`;
+    const template = resetPasswordTemplate(name, url, minutes);
+    try {
+      await this.transporter.sendMail({
+        from: {
+          name: this.config.getOrThrow('SMTP_FROM_NAME'),
+          address: this.config.getOrThrow('SMTP_FROM_EMAIL'),
+        },
+        to: email,
+        ...template,
+      });
+    } catch {
+      this.logger.error('Falha ao enviar e-mail de redefinição de senha.');
     }
   }
 }

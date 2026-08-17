@@ -14,6 +14,7 @@ export interface AccessTokenPayload {
   sub: string;
   email: string;
   role: UserRole;
+  iat: number;
 }
 
 @Injectable()
@@ -33,6 +34,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.usersService.findById(payload.sub);
     if (!user) throw new UnauthorizedException('Sessão expirada');
     if (!user.isActive) throw new ForbiddenException('Usuário inativo');
+    if (
+      user.passwordChangedAt &&
+      Math.floor(user.passwordChangedAt.getTime() / 1000) > payload.iat
+    )
+      throw new UnauthorizedException('Sessão expirada');
     return user;
   }
 }

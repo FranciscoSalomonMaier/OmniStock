@@ -69,6 +69,37 @@ export class UsersService {
       .getOne();
   }
 
+  findByResetHash(tokenHash: string): Promise<User | null> {
+    return this.users
+      .createQueryBuilder('user')
+      .addSelect(['user.passwordResetTokenHash', 'user.passwordHash'])
+      .where('user.passwordResetTokenHash = :tokenHash', { tokenHash })
+      .getOne();
+  }
+  async savePasswordReset(
+    id: string,
+    tokenHash: string,
+    expiresAt: Date,
+  ): Promise<void> {
+    await this.users.update(id, {
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpiresAt: expiresAt,
+    });
+  }
+  async updateName(id: string, name: string): Promise<User> {
+    await this.users.update(id, { name: name.trim() });
+    return (await this.findById(id))!;
+  }
+  async changePassword(id: string, passwordHash: string): Promise<void> {
+    await this.users.update(id, {
+      passwordHash,
+      passwordChangedAt: new Date(),
+      refreshTokenHash: null,
+      passwordResetTokenHash: null,
+      passwordResetExpiresAt: null,
+    });
+  }
+
   async saveVerificationToken(
     id: string,
     tokenHash: string,
@@ -105,6 +136,12 @@ export class UsersService {
   toPublic(user: User): PublicUser {
     const { id, name, email, role, isActive, createdAt } = user;
     return { id, name, email, role, isActive, createdAt };
+  }
+
+  toProfile(user: User) {
+    const { id, name, email, emailVerifiedAt, isActive, createdAt, updatedAt } =
+      user;
+    return { id, name, email, emailVerifiedAt, isActive, createdAt, updatedAt };
   }
 
   private isUniqueViolation(error: unknown): boolean {

@@ -1,0 +1,1 @@
+import { useContext } from 'react';import { CompanyContext } from '../contexts/company-context';export function useCompany(){const value=useContext(CompanyContext);if(!value)throw new Error('useCompany deve ser usado no CompanyProvider');return value}

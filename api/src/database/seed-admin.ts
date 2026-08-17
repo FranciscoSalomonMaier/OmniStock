@@ -3,6 +3,9 @@ import { hash } from 'bcrypt';
 import dataSource from './data-source';
 import { User } from '../users/entities/user.entity';
 import { UserRole } from '../common/enums/user-role.enum';
+import { Company } from '../companies/entities/company.entity';
+import { CompanyMember } from '../companies/entities/company-member.entity';
+import { CompanyRole } from '../common/enums/company-role.enum';
 
 async function seedAdmin(): Promise<void> {
   if (process.env.NODE_ENV === 'production')
@@ -16,20 +19,43 @@ async function seedAdmin(): Promise<void> {
   await dataSource.initialize();
   const users = dataSource.getRepository(User);
   const email = 'admin@omnistock.local';
-  if (await users.findOne({ where: { email } })) {
-    console.log('Administrador já existe; nenhuma alteração realizada.');
-    return;
-  }
-  await users.save(
-    users.create({
-      name: 'Administrador',
-      email,
-      passwordHash: await hash(password, 12),
-      role: UserRole.ADMIN,
-      emailVerifiedAt: new Date(),
-    }),
-  );
-  console.log('Administrador de desenvolvimento criado.');
+  let admin = await users.findOne({ where: { email } });
+  if (!admin)
+    admin = await users.save(
+      users.create({
+        name: 'Administrador',
+        email,
+        passwordHash: await hash(password, 12),
+        role: UserRole.ADMIN,
+        emailVerifiedAt: new Date(),
+      }),
+    );
+  const companies = dataSource.getRepository(Company);
+  const members = dataSource.getRepository(CompanyMember);
+  let company = await companies.findOne({
+    where: { document: '00000000000000' },
+  });
+  if (!company)
+    company = await companies.save(
+      companies.create({
+        legalName: 'OmniStock Desenvolvimento LTDA',
+        tradeName: 'OmniStock Desenvolvimento',
+        document: '00000000000000',
+      }),
+    );
+  if (
+    !(await members.findOne({
+      where: { companyId: company.id, userId: admin.id },
+    }))
+  )
+    await members.save(
+      members.create({
+        companyId: company.id,
+        userId: admin.id,
+        role: CompanyRole.ADMIN,
+      }),
+    );
+  console.log('Administrador e empresa de desenvolvimento disponíveis.');
 }
 
 seedAdmin()

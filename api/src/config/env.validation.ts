@@ -33,6 +33,10 @@ export const envValidationSchema = Joi.object({
     .integer()
     .positive()
     .required(),
+  PASSWORD_RESET_EXPIRES_IN_MINUTES: Joi.number()
+    .integer()
+    .positive()
+    .default(30),
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().port().required(),
 });

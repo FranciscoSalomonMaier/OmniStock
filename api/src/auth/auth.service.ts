@@ -79,6 +79,40 @@ export class AuthService {
     return this.issueSession(user);
   }
 
+  async forgotPassword(email: string): Promise<{ message: string }> {
+    const message =
+      'Se existir uma conta para esse e-mail, enviaremos as instruções para redefinir a senha.';
+    const user = await this.users.findByEmail(email);
+    if (!user || !user.isActive) return { message };
+    const token = randomBytes(32).toString('base64url');
+    const expires = new Date(
+      Date.now() +
+        this.config.getOrThrow<number>('PASSWORD_RESET_EXPIRES_IN_MINUTES') *
+          60000,
+    );
+    await this.users.savePasswordReset(user.id, this.hashToken(token), expires);
+    await this.mail.sendPasswordReset(user.name, user.email, token);
+    return { message };
+  }
+
+  async resetPassword(
+    token: string,
+    password: string,
+  ): Promise<{ message: string }> {
+    const user = await this.users.findByResetHash(this.hashToken(token));
+    if (
+      !user ||
+      !user.passwordResetTokenHash ||
+      !user.passwordResetExpiresAt ||
+      user.passwordResetExpiresAt.getTime() <= Date.now()
+    )
+      throw new UnauthorizedException(
+        'O link de redefinição é inválido ou expirou.',
+      );
+    await this.users.changePassword(user.id, await hash(password, 12));
+    return { message: 'Senha redefinida com sucesso. Você já pode entrar.' };
+  }
+
   async verifyEmail(token: string): Promise<{ message: string }> {
     const tokenHash = this.hashToken(token);
     const user = await this.users.findByVerificationHash(tokenHash);

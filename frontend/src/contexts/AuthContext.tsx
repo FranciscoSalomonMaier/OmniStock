@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(() => ({ user, isAuthenticated: Boolean(user && accessToken), isLoading,
     login: async (input) => applySession(await authService.login(input)),
     register: (input) => authService.register(input),
-    logout: async () => { try { await authService.logout() } finally { applySession(null) } }, refreshSession,
+    logout: async () => { try { await authService.logout() } finally { localStorage.removeItem('omnistock_company_id'); window.dispatchEvent(new Event('omnistock:logout')); applySession(null) } }, refreshSession,
   }), [accessToken, applySession, isLoading, refreshSession, user])
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
