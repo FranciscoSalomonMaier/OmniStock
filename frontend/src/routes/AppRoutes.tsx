@@ -15,8 +15,12 @@ import { MembersPage } from '../pages/companies/MembersPage'
 import { CompanySettingsPage } from '../pages/companies/CompanySettingsPage'
 import { ProfilePage } from '../pages/profile/ProfilePage'
 import { CompanyRequiredRoute } from '../components/company/CompanyRequiredRoute'
+import { ProductsPage } from '../pages/products/ProductsPage'
+import { ProductFormPage } from '../pages/products/ProductFormPage'
+import { ProductDetailsPage } from '../pages/products/ProductDetailsPage'
+import { CategoriesPage } from '../pages/products/CategoriesPage'
 export function AppRoutes() { return <Routes>
   <Route element={<AuthLayout />}><Route path="/login" element={<LoginPage />} /><Route path="/register" element={<RegisterPage />} /><Route path="/verify-email" element={<VerifyEmailPage />} /><Route path="/verification-pending" element={<VerificationPendingPage />} /><Route path="/resend-verification" element={<ResendVerificationPage />} /><Route path="/forgot-password" element={<ForgotPasswordPage />} /><Route path="/reset-password" element={<ResetPasswordPage />} /></Route>
-  <Route element={<ProtectedRoute />}><Route path="/companies" element={<CompaniesPage />} /><Route path="/companies/new" element={<NewCompanyPage />} /><Route path="/profile" element={<ProfilePage />} /><Route element={<CompanyRequiredRoute/>}><Route path="/dashboard" element={<DashboardPage />} /><Route path="/settings/company" element={<CompanySettingsPage />} /><Route path="/settings/company/members" element={<MembersPage />} /></Route></Route>
+  <Route element={<ProtectedRoute />}><Route path="/companies" element={<CompaniesPage />} /><Route path="/companies/new" element={<NewCompanyPage />} /><Route path="/profile" element={<ProfilePage />} /><Route element={<CompanyRequiredRoute/>}><Route path="/dashboard" element={<DashboardPage />} /><Route path="/settings/company" element={<CompanySettingsPage />} /><Route path="/settings/company/members" element={<MembersPage />} /><Route path="/products" element={<ProductsPage />} /><Route path="/products/new" element={<ProductFormPage />} /><Route path="/products/:id" element={<ProductDetailsPage />} /><Route path="/products/:id/edit" element={<ProductFormPage />} /><Route path="/product-categories" element={<CategoriesPage />} /></Route></Route>
   <Route path="*" element={<Navigate to="/dashboard" replace />} />
 </Routes> }

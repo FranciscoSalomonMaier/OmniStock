@@ -37,6 +37,9 @@ export const envValidationSchema = Joi.object({
     .integer()
     .positive()
     .default(30),
+  PRODUCT_IMAGE_MAX_SIZE_MB: Joi.number().integer().positive().default(5),
+  PRODUCT_IMAGE_MAX_COUNT: Joi.number().integer().positive().default(10),
+  UPLOAD_DIR: Joi.string().default('uploads'),
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().port().required(),
 });

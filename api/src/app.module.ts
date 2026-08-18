@@ -12,6 +12,7 @@ import { UsersModule } from './users/users.module';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { CompaniesModule } from './companies/companies.module';
+import { ProductsModule } from './products/products.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { CompaniesModule } from './companies/companies.module';
     AuthModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     CompaniesModule,
+    ProductsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

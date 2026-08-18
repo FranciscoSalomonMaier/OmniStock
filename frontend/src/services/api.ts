@@ -37,13 +37,14 @@ async function send(path: string, options: ApiOptions): Promise<Response> {
   const token = getAccessToken()
   if (token) headers.set('Authorization', `Bearer ${token}`)
   const companyId=getCompanyId(); if(companyId) headers.set('X-Company-Id',companyId)
-  if (options.body && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
+  if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type')) headers.set('Content-Type', 'application/json')
   return fetch(`${API_URL}${path}`, { ...options, headers, credentials: 'include' })
 }
 
 async function parseResponse<T>(response: Response): Promise<T> {
   if (response.status === 204) return undefined as T
-  const data: unknown = (response.headers.get('content-type') ?? '').includes('application/json') ? await response.json() : await response.text()
+  const contentType=response.headers.get('content-type')??''
+  const data: unknown = contentType.includes('application/json') ? await response.json() : contentType.startsWith('image/') ? await response.blob() : await response.text()
   if (!response.ok) {
     const message = typeof data === 'object' && data !== null && 'message' in data
       ? (Array.isArray(data.message) ? data.message.join('. ') : String(data.message)) : 'Não foi possível concluir a solicitação'

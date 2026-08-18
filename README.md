@@ -148,4 +148,49 @@ Para testar recuperação de senha, abra `/forgot-password`, informe o e-mail e 
 
 Rotas do frontend: `/companies`, `/companies/new`, `/settings/company`, `/settings/company/members` e `/profile`.
 
-Limitações: membros são associados somente quando já possuem usuário cadastrado; convite por e-mail não foi criado. O throttling em memória é adequado a uma instância e deve usar Redis quando a API for escalada. Não existem ainda entidades de produtos, estoque ou faturamento às quais aplicar `companyId`; toda futura entidade empresarial deve filtrar por `companyId` diretamente nas consultas.
+Limitações: membros são associados somente quando já possuem usuário cadastrado; convite por e-mail não foi criado. O throttling em memória é adequado a uma instância e deve usar Redis quando a API for escalada. Ainda não existem entidades de estoque ou faturamento; toda futura entidade empresarial deve filtrar por `companyId` diretamente nas consultas.
+
+## Produtos e categorias
+
+O módulo central de produtos usa as tabelas `products`, `product_categories` e `product_images`. Execute:
+
+```powershell
+cd api
+npm.cmd run migration:run
+```
+
+Todas as chamadas exigem Bearer token e `X-Company-Id`. Exemplo de categoria:
+
+```http
+POST /api/product-categories
+X-Company-Id: UUID
+Content-Type: application/json
+
+{"name":"Utilidades domésticas"}
+```
+
+Exemplo de produto:
+
+```http
+POST /api/products
+X-Company-Id: UUID
+Content-Type: application/json
+
+{"sku":"MK001","name":"Pote Hermético 1L","unitOfMeasure":"UN","salePrice":"19.90","minimumStock":"5.000"}
+```
+
+O SKU e o código de barras são únicos por empresa; o mesmo valor pode existir em empresas diferentes. Preços são armazenados como `decimal`, peso em quilogramas e dimensões em centímetros. Preço zero é permitido, mas valores negativos não.
+
+Imagens JPEG, PNG e WebP são enviadas em `multipart/form-data`, campo `file`, para `POST /api/products/:id/images`. Os binários ficam fora do PostgreSQL em `UPLOAD_DIR/products/{companyId}/{productId}`, sempre com nome UUID. A implementação local pode ser substituída por S3/R2 através do serviço de armazenamento.
+
+```env
+PRODUCT_IMAGE_MAX_SIZE_MB=5
+PRODUCT_IMAGE_MAX_COUNT=10
+UPLOAD_DIR=uploads
+```
+
+Rotas do frontend: `/products`, `/products/new`, `/products/:id`, `/products/:id/edit` e `/product-categories`.
+
+Permissões: todos os membros ativos visualizam produtos; `ADMIN`, `MANAGER` e `STOCKIST` criam/editam e gerenciam imagens; somente `ADMIN` e `MANAGER` alteram status e categorias. `SUPPORT` e `VIEWER` nunca recebem `costPrice` da API.
+
+Não há saldo nem movimentação de estoque nesta etapa. `minimumStock` é somente o limite para alertas futuros. O armazenamento local é próprio para desenvolvimento; produção deve usar armazenamento de objetos compartilhado.
