@@ -1,3 +1,3 @@
-import { Navigate, Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 import { useCompany } from '../../hooks/useCompany'
-export function CompanyRequiredRoute(){const{activeCompany,isLoading}=useCompany();if(isLoading)return <main className="loading">Carregando empresas...</main>;return activeCompany?<Outlet/>:<Navigate to="/companies/new" replace/>}
+export function CompanyRequiredRoute(){const{activeCompany,isLoading}=useCompany();if(isLoading)return <main className="loading">Carregando empresas...</main>;return activeCompany?<Outlet/>:<main className="page empty-state"><h1>Selecione uma empresa</h1><p>Esta área usa dados de uma empresa. Escolha uma empresa existente ou cadastre a primeira para continuar.</p><div className="dashboard-links"><Link className="primary-link" to="/companies">Selecionar empresa</Link><Link to="/companies/new">Cadastrar empresa</Link></div></main>}

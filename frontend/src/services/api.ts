@@ -5,6 +5,8 @@ let getAccessToken: () => string | null = () => null
 let renewSession: () => Promise<boolean> = async () => false
 let onSessionExpired: () => void = () => undefined
 let refreshPromise: Promise<boolean> | null = null
+let sessionVersion = 0
+export function invalidateApiSession(){sessionVersion += 1; refreshPromise = null}
 let getCompanyId: () => string | null = () => localStorage.getItem('omnistock_company_id')
 export function configureApiCompany(getter:()=>string|null){getCompanyId=getter}
 
@@ -23,10 +25,12 @@ export function configureApiAuth(config: { getAccessToken: () => string | null; 
 interface ApiOptions extends RequestInit { skipAuthRefresh?: boolean }
 
 export async function apiRequest<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  const requestVersion = sessionVersion
   const response = await send(path, options)
+  if (requestVersion !== sessionVersion) throw new ApiError('Sessao encerrada', 401)
   if (response.status === 401 && !options.skipAuthRefresh && getAccessToken()) {
     refreshPromise ??= renewSession().finally(() => { refreshPromise = null })
-    if (await refreshPromise) return parseResponse<T>(await send(path, options))
+    if (await refreshPromise && requestVersion === sessionVersion) return parseResponse<T>(await send(path, options))
     onSessionExpired()
   }
   return parseResponse<T>(response)

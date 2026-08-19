@@ -8,6 +8,7 @@ export interface AuthContextValue {
   login: (input: LoginInput) => Promise<void>
   register: (input: RegisterInput) => Promise<RegistrationResponse>
   logout: () => Promise<void>
+  clearSession: () => void
   refreshSession: () => Promise<boolean>
 }
 

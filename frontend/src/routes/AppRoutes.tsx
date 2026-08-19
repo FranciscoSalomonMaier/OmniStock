@@ -1,26 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { ProtectedRoute } from '../components/auth/ProtectedRoute'
-import { AuthLayout } from '../layouts/AuthLayout'
-import { LoginPage } from '../pages/auth/LoginPage'
-import { RegisterPage } from '../pages/auth/RegisterPage'
-import { DashboardPage } from '../pages/dashboard/DashboardPage'
-import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage'
-import { VerificationPendingPage } from '../pages/auth/VerificationPendingPage'
-import { ResendVerificationPage } from '../pages/auth/ResendVerificationPage'
-import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage'
-import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage'
-import { CompaniesPage } from '../pages/companies/CompaniesPage'
-import { NewCompanyPage } from '../pages/companies/NewCompanyPage'
-import { MembersPage } from '../pages/companies/MembersPage'
-import { CompanySettingsPage } from '../pages/companies/CompanySettingsPage'
-import { ProfilePage } from '../pages/profile/ProfilePage'
-import { CompanyRequiredRoute } from '../components/company/CompanyRequiredRoute'
-import { ProductsPage } from '../pages/products/ProductsPage'
-import { ProductFormPage } from '../pages/products/ProductFormPage'
-import { ProductDetailsPage } from '../pages/products/ProductDetailsPage'
-import { CategoriesPage } from '../pages/products/CategoriesPage'
-export function AppRoutes() { return <Routes>
-  <Route element={<AuthLayout />}><Route path="/login" element={<LoginPage />} /><Route path="/register" element={<RegisterPage />} /><Route path="/verify-email" element={<VerifyEmailPage />} /><Route path="/verification-pending" element={<VerificationPendingPage />} /><Route path="/resend-verification" element={<ResendVerificationPage />} /><Route path="/forgot-password" element={<ForgotPasswordPage />} /><Route path="/reset-password" element={<ResetPasswordPage />} /></Route>
-  <Route element={<ProtectedRoute />}><Route path="/companies" element={<CompaniesPage />} /><Route path="/companies/new" element={<NewCompanyPage />} /><Route path="/profile" element={<ProfilePage />} /><Route element={<CompanyRequiredRoute/>}><Route path="/dashboard" element={<DashboardPage />} /><Route path="/settings/company" element={<CompanySettingsPage />} /><Route path="/settings/company/members" element={<MembersPage />} /><Route path="/products" element={<ProductsPage />} /><Route path="/products/new" element={<ProductFormPage />} /><Route path="/products/:id" element={<ProductDetailsPage />} /><Route path="/products/:id/edit" element={<ProductFormPage />} /><Route path="/product-categories" element={<CategoriesPage />} /></Route></Route>
-  <Route path="*" element={<Navigate to="/dashboard" replace />} />
-</Routes> }
+import { ProtectedRoute } from '../components/auth/ProtectedRoute';import { CompanyRequiredRoute } from '../components/company/CompanyRequiredRoute';import { AuthLayout } from '../layouts/AuthLayout';import { DashboardLayout } from '../layouts/DashboardLayout'
+import { ForgotPasswordPage } from '../pages/auth/ForgotPasswordPage';import { LoginPage } from '../pages/auth/LoginPage';import { RegisterPage } from '../pages/auth/RegisterPage';import { ResendVerificationPage } from '../pages/auth/ResendVerificationPage';import { ResetPasswordPage } from '../pages/auth/ResetPasswordPage';import { VerificationPendingPage } from '../pages/auth/VerificationPendingPage';import { VerifyEmailPage } from '../pages/auth/VerifyEmailPage'
+import { CompaniesPage } from '../pages/companies/CompaniesPage';import { CompanySettingsPage } from '../pages/companies/CompanySettingsPage';import { MembersPage } from '../pages/companies/MembersPage';import { NewCompanyPage } from '../pages/companies/NewCompanyPage';import { DashboardPage } from '../pages/dashboard/DashboardPage';import { CategoriesPage } from '../pages/products/CategoriesPage';import { ProductDetailsPage } from '../pages/products/ProductDetailsPage';import { ProductFormPage } from '../pages/products/ProductFormPage';import { ProductsPage } from '../pages/products/ProductsPage';import { ChangePasswordPage } from '../pages/profile/ChangePasswordPage';import { ProfilePage } from '../pages/profile/ProfilePage'
+export function AppRoutes(){return <Routes><Route element={<AuthLayout/>}><Route path="/login" element={<LoginPage/>}/><Route path="/register" element={<RegisterPage/>}/><Route path="/verify-email" element={<VerifyEmailPage/>}/><Route path="/verification-pending" element={<VerificationPendingPage/>}/><Route path="/resend-verification" element={<ResendVerificationPage/>}/><Route path="/forgot-password" element={<ForgotPasswordPage/>}/><Route path="/reset-password" element={<ResetPasswordPage/>}/></Route><Route element={<ProtectedRoute/>}><Route element={<DashboardLayout/>}><Route path="/dashboard" element={<DashboardPage/>}/><Route path="/companies" element={<CompaniesPage/>}/><Route path="/companies/new" element={<NewCompanyPage/>}/><Route path="/profile" element={<ProfilePage/>}/><Route path="/profile/password" element={<ChangePasswordPage/>}/><Route element={<CompanyRequiredRoute/>}><Route path="/settings/company" element={<CompanySettingsPage/>}/><Route path="/settings/company/members" element={<MembersPage/>}/><Route path="/products" element={<ProductsPage/>}/><Route path="/products/new" element={<ProductFormPage/>}/><Route path="/products/:id" element={<ProductDetailsPage/>}/><Route path="/products/:id/edit" element={<ProductFormPage/>}/><Route path="/product-categories" element={<CategoriesPage/>}/></Route></Route></Route><Route path="*" element={<Navigate to="/dashboard" replace/>}/></Routes>}

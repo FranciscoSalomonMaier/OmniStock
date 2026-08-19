@@ -1,0 +1,7 @@
+.nav-group-toggle{display:flex;width:100%;align-items:center;justify-content:space-between;margin:0;padding:.5rem .75rem;border:0;background:transparent;color:#7a877e;font:inherit;font-size:.7rem;font-weight:700;letter-spacing:.1em;text-align:left;text-transform:uppercase;cursor:pointer}
+.nav-group-toggle:hover{color:#17673d}
+.nav-chevron{font-size:1rem;transition:transform .2s ease}
+.nav-group-toggle[aria-expanded="false"] .nav-chevron{transform:rotate(-90deg)}
+.nav-group-items{max-height:0;overflow:hidden;opacity:0;transition:max-height .25s ease,opacity .15s ease}
+.nav-group-items.expanded{max-height:24rem;opacity:1}
+@media(prefers-reduced-motion:reduce){.nav-chevron,.nav-group-items{transition:none}}
