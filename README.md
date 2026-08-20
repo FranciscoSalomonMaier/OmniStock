@@ -193,4 +193,27 @@ Rotas do frontend: `/products`, `/products/new`, `/products/:id`, `/products/:id
 
 Permissões: todos os membros ativos visualizam produtos; `ADMIN`, `MANAGER` e `STOCKIST` criam/editam e gerenciam imagens; somente `ADMIN` e `MANAGER` alteram status e categorias. `SUPPORT` e `VIEWER` nunca recebem `costPrice` da API.
 
-Não há saldo nem movimentação de estoque nesta etapa. `minimumStock` é somente o limite para alertas futuros. O armazenamento local é próprio para desenvolvimento; produção deve usar armazenamento de objetos compartilhado.
+O armazenamento local de imagens é próprio para desenvolvimento; produção deve usar armazenamento de objetos compartilhado.
+
+## Estoque central
+
+O estoque usa `InventoryBalance` como estado atual, `InventoryMovement` como livro-razão imutável e `InventoryReservation` para o ciclo de vida das reservas. O disponível é calculado como `currentQuantity - reservedQuantity`; estoque baixo significa `availableQuantity <= minimumStock`. Quantidades usam `numeric(18,3)` e cálculos em milésimos inteiros.
+
+Toda escrita ocorre em transação e bloqueia o saldo com `SELECT FOR UPDATE`. Entrada aumenta o físico; saída consome apenas o disponível; reserva aumenta somente o reservado; cancelamento libera o reservado; baixa reduz físico e reservado; estorno repõe o físico sem recriar reserva. Movimentações não possuem edição ou exclusão.
+
+Operações mutáveis exigem `Idempotency-Key` UUID único por empresa, persistido com o hash do payload. `expiresAt` está preparado, mas não há expiração automática sem infraestrutura de jobs. Existe um único saldo central por produto, sem depósitos. Referências `ORDER` e `SALE` estão preparadas para integrações futuras, sem implementar pedidos.
+
+Rotas do frontend: `/inventory`, `/inventory/movements`, `/inventory/entries/new`, `/inventory/exits/new`, `/inventory/adjustments/new`, `/inventory/reservations` e `/inventory/products/:id`. Todos veem saldos; `SUPPORT` não vê movimentações; `ADMIN`, `MANAGER` e `STOCKIST` movimentam; somente `ADMIN` e `MANAGER` estornam.
+
+```powershell
+cd api
+npm.cmd run migration:run
+npm.cmd test -- --runInBand
+npm.cmd run lint
+npm.cmd run build
+cd ../frontend
+npm.cmd run lint
+npm.cmd run build
+```
+
+Para testar concorrência, deixe disponível `1.000` e envie simultaneamente duas reservas com referências e chaves diferentes. Uma deve concluir e outra retornar `409`; o reservado deve permanecer `1.000`.
