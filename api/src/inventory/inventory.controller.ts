@@ -96,6 +96,7 @@ export class InventoryController {
     @CurrentMembership() m: CompanyMember,
     @Param('id') id: string,
   ) {
+    if (m.role === CompanyRole.SUPPORT) throw new ForbiddenException();
     return this.s.movement(m.companyId, id);
   }
   @Post('movements/:id/reverse')

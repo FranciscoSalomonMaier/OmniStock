@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import {
   IsEnum,
+  IsDateString,
   IsIn,
   IsInt,
   IsOptional,
@@ -72,8 +73,8 @@ export class ListMovementsDto {
   @IsEnum(InventoryReferenceType)
   referenceType?: InventoryReferenceType;
   @IsOptional() @IsString() referenceId?: string;
-  @IsOptional() @IsString() dateFrom?: string;
-  @IsOptional() @IsString() dateTo?: string;
+  @IsOptional() @IsDateString() dateFrom?: string;
+  @IsOptional() @IsDateString() dateTo?: string;
   @IsIn(['asc', 'desc']) sortDirection: 'asc' | 'desc' = 'desc';
 }
 export class ListReservationsDto {

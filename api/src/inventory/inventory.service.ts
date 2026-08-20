@@ -10,6 +10,9 @@ import {
   DataSource,
   EntityManager,
   FindOptionsWhere,
+  Between,
+  MoreThanOrEqual,
+  LessThanOrEqual,
   Repository,
 } from 'typeorm';
 import { Product } from '../products/entities/product.entity';
@@ -260,6 +263,8 @@ export class InventoryService {
           c,
         })
         .getOneOrFail();
+      if (await m.findOneBy(InventoryMovement, { reversalOfMovementId: id }))
+        throw new ConflictException('Esta movimentação já foi estornada.');
       const movement = await this.persist(
         m,
         b,
@@ -286,6 +291,16 @@ export class InventoryService {
     if (q.performedByUserId) where.performedByUserId = q.performedByUserId;
     if (q.referenceType) where.referenceType = q.referenceType;
     if (q.referenceId) where.referenceId = q.referenceId;
+    if (q.dateFrom && q.dateTo) {
+      const from = new Date(q.dateFrom),
+        to = new Date(q.dateTo);
+      if (from > to) throw new BadRequestException('Período inválido.');
+      if (to.getTime() - from.getTime() > 366 * 86400000)
+        throw new BadRequestException('O período máximo é de 366 dias.');
+      where.occurredAt = Between(from, to);
+    } else if (q.dateFrom)
+      where.occurredAt = MoreThanOrEqual(new Date(q.dateFrom));
+    else if (q.dateTo) where.occurredAt = LessThanOrEqual(new Date(q.dateTo));
     const [data, total] = await this.movements.findAndCount({
       where,
       relations: { product: true, performedBy: true },
@@ -398,6 +413,17 @@ export class InventoryService {
         .where('r.id=:id AND r.company_id=:c', { id, c })
         .getOne();
       if (!r) throw new NotFoundException('Reserva não encontrada');
+      const duplicateAfterLock = await m.findOneBy(InventoryMovement, {
+        companyId: c,
+        idempotencyKey: k,
+      });
+      if (duplicateAfterLock) {
+        if (duplicateAfterLock.requestHash !== hash)
+          throw new ConflictException(
+            'Idempotency-Key reutilizada com dados diferentes.',
+          );
+        return duplicateAfterLock;
+      }
       if (r.status !== InventoryReservationStatus.ACTIVE)
         throw new ConflictException(
           `Esta reserva já foi ${r.status === InventoryReservationStatus.COMPLETED ? 'concluída' : 'cancelada'}.`,
@@ -481,6 +507,17 @@ export class InventoryService {
         .setLock('pessimistic_write')
         .where('b.company_id=:c AND b.product_id=:p', { c, p })
         .getOneOrFail();
+      const duplicateAfterLock = await m.findOneBy(InventoryMovement, {
+        companyId: c,
+        idempotencyKey: k,
+      });
+      if (duplicateAfterLock) {
+        if (duplicateAfterLock.requestHash !== hash)
+          throw new ConflictException(
+            'Idempotency-Key reutilizada com dados diferentes.',
+          );
+        return duplicateAfterLock;
+      }
       const result = await fn(m, b);
       await m.update(
         InventoryMovement,

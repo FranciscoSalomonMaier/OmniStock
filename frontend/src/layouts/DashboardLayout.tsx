@@ -11,12 +11,13 @@ const menu = [
   ['Estoque', [['▦', 'Visão geral', '/inventory', true], ['↕', 'Movimentações', '/inventory/movements', true], ['＋', 'Nova entrada', '/inventory/entries/new', true], ['−', 'Nova saída', '/inventory/exits/new', true], ['≋', 'Ajustar estoque', '/inventory/adjustments/new', true], ['◇', 'Reservas', '/inventory/reservations', true]]],
   ['Minha conta', [['●', 'Perfil', '/profile', false], ['⌁', 'Alterar senha', '/profile/password', false]]],
 ] as const
+const stockWriteLabels=new Set(['Nova entrada','Nova saída','Ajustar estoque'])
 
 export function DashboardLayout() {
   const [open, setOpen] = useState(false)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ Empresas: false, Produtos: false, Estoque: false, 'Minha conta': false })
   const { user, logout } = useAuth()
-  const { companies, activeCompany, isLoading, pendingCompany, requestCompanySwitch, confirmCompanySwitch, cancelCompanySwitch } = useCompany()
+  const { companies, activeCompany, activeMembership, isLoading, pendingCompany, requestCompanySwitch, confirmCompanySwitch, cancelCompanySwitch } = useCompany()
   const navigate = useNavigate()
   const toggleGroup = (group: string) => setExpanded(current => ({ ...current, [group]: !current[group] }))
   async function leave() { await logout(); navigate('/login', { replace: true }) }
@@ -42,7 +43,7 @@ export function DashboardLayout() {
         
         <div id={`menu-${group}`} className={isExpanded ? 'nav-group-items expanded' : 'nav-group-items'}>
           {
-            items.map(([icon, label, to, requiresCompany]) => requiresCompany && !activeCompany ? 
+            items.filter(([,label])=>group!=='Estoque'||(label!=='Movimentações'||activeMembership?.role!=='SUPPORT')&&(!stockWriteLabels.has(label)||['ADMIN','MANAGER','STOCKIST'].includes(activeMembership?.role??''))).map(([icon, label, to, requiresCompany]) => requiresCompany && !activeCompany ?
               <span key={to} className="nav-item disabled" title="Selecione uma empresa para acessar" aria-disabled="true">
                 <b>{icon}</b>{label}
               </span> 
