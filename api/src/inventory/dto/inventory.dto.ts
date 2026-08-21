@@ -51,6 +51,9 @@ export class ListInventoryDto {
   @IsOptional() @IsIn(['ACTIVE', 'INACTIVE', 'DISCONTINUED']) status?: string;
   @IsOptional() @IsIn(['true', 'false']) belowMinimum?: string;
   @IsOptional() @IsIn(['true', 'false']) withReservation?: string;
+  @IsOptional()
+  @IsIn(['NORMAL', 'LOW', 'OUT', 'RESERVED'])
+  stockSituation?: string;
   @IsIn([
     'sku',
     'name',
@@ -67,6 +70,7 @@ export class ListMovementsDto {
   @Type(() => Number) @IsInt() @Min(1) page = 1;
   @Type(() => Number) @IsInt() @Min(1) @Max(100) limit = 20;
   @IsOptional() @IsUUID() productId?: string;
+  @IsOptional() @IsString() search?: string;
   @IsOptional() @IsEnum(InventoryMovementType) type?: InventoryMovementType;
   @IsOptional() @IsUUID() performedByUserId?: string;
   @IsOptional()

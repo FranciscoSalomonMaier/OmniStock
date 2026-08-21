@@ -1,0 +1,1 @@
+export const movementLabels:Record<string,string>={ENTRY:'Entrada',EXIT:'Saída',ADJUSTMENT_INCREASE:'Ajuste positivo',ADJUSTMENT_DECREASE:'Ajuste negativo',RESERVATION:'Reserva',RESERVATION_CANCELED:'Cancelamento de reserva',SALE_COMPLETED:'Baixa por venda',SALE_CANCELED_REVERSAL:'Estorno por cancelamento'};

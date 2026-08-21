@@ -1,7 +1,11 @@
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ValidationPipe } from '@nestjs/common';
+import {
+  BadRequestException,
+  ValidationError,
+  ValidationPipe,
+} from '@nestjs/common';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
@@ -15,6 +19,22 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: (validationErrors: ValidationError[]) => {
+        const errors: Record<string, string[]> = {};
+        const collect = (items: ValidationError[], prefix = '') =>
+          items.forEach((item) => {
+            const key = prefix ? `${prefix}.${item.property}` : item.property;
+            if (item.constraints) errors[key] = Object.values(item.constraints);
+            if (item.children?.length) collect(item.children, key);
+          });
+        collect(validationErrors);
+        return new BadRequestException({
+          statusCode: 400,
+          code: 'VALIDATION_ERROR',
+          message: 'Existem informações inválidas.',
+          errors,
+        });
+      },
     }),
   );
   app.enableCors({

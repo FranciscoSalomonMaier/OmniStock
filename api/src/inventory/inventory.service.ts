@@ -10,9 +10,6 @@ import {
   DataSource,
   EntityManager,
   FindOptionsWhere,
-  Between,
-  MoreThanOrEqual,
-  LessThanOrEqual,
   Repository,
 } from 'typeorm';
 import { Product } from '../products/entities/product.entity';
@@ -89,6 +86,17 @@ export class InventoryService {
     if (q.belowMinimum === 'true')
       qb.andWhere('(b.current_quantity-b.reserved_quantity)<=p.minimum_stock');
     if (q.withReservation === 'true') qb.andWhere('b.reserved_quantity>0');
+    if (q.stockSituation === 'OUT')
+      qb.andWhere('(b.current_quantity-b.reserved_quantity)=0');
+    if (q.stockSituation === 'LOW')
+      qb.andWhere(
+        '(b.current_quantity-b.reserved_quantity)>0 AND (b.current_quantity-b.reserved_quantity)<=p.minimum_stock',
+      );
+    if (q.stockSituation === 'RESERVED') qb.andWhere('b.reserved_quantity>0');
+    if (q.stockSituation === 'NORMAL')
+      qb.andWhere(
+        '(b.current_quantity-b.reserved_quantity)>p.minimum_stock AND b.reserved_quantity=0',
+      );
     const sort: Record<string, string> = {
       sku: 'p.sku',
       name: 'p.name',
@@ -126,14 +134,24 @@ export class InventoryService {
         'COUNT(*) FILTER (WHERE b.reserved_quantity>0)',
         'withReservation',
       )
+      .addSelect(
+        'COUNT(*) FILTER (WHERE b.current_quantity-b.reserved_quantity=0)',
+        'withoutStock',
+      )
       .where('b.company_id=:companyId', { companyId })
       .getRawOne<{
         totalProducts: string;
         belowMinimum: string;
         withReservation: string;
+        withoutStock: string;
       }>();
     return (
-      rows ?? { totalProducts: '0', belowMinimum: '0', withReservation: '0' }
+      rows ?? {
+        totalProducts: '0',
+        belowMinimum: '0',
+        withReservation: '0',
+        withoutStock: '0',
+      }
     );
   }
   entry(c: string, u: string, d: StockOperationDto, k: string) {
@@ -285,29 +303,49 @@ export class InventoryService {
     });
   }
   async listMovements(c: string, q: ListMovementsDto) {
-    const where: FindOptionsWhere<InventoryMovement> = { companyId: c };
-    if (q.productId) where.productId = q.productId;
-    if (q.type) where.type = q.type;
-    if (q.performedByUserId) where.performedByUserId = q.performedByUserId;
-    if (q.referenceType) where.referenceType = q.referenceType;
-    if (q.referenceId) where.referenceId = q.referenceId;
+    const qb = this.movements
+      .createQueryBuilder('movement')
+      .leftJoinAndSelect('movement.product', 'product')
+      .leftJoinAndSelect('movement.performedBy', 'performedBy')
+      .where('movement.companyId=:c', { c });
+    if (q.search)
+      qb.andWhere('(product.sku ILIKE :search OR product.name ILIKE :search)', {
+        search: `%${q.search}%`,
+      });
+    if (q.productId)
+      qb.andWhere('movement.productId=:productId', { productId: q.productId });
+    if (q.type) qb.andWhere('movement.type=:type', { type: q.type });
+    if (q.performedByUserId)
+      qb.andWhere('movement.performedByUserId=:user', {
+        user: q.performedByUserId,
+      });
+    if (q.referenceType)
+      qb.andWhere('movement.referenceType=:referenceType', {
+        referenceType: q.referenceType,
+      });
+    if (q.referenceId)
+      qb.andWhere('movement.referenceId ILIKE :referenceId', {
+        referenceId: `%${q.referenceId}%`,
+      });
     if (q.dateFrom && q.dateTo) {
       const from = new Date(q.dateFrom),
         to = new Date(q.dateTo);
       if (from > to) throw new BadRequestException('Período inválido.');
       if (to.getTime() - from.getTime() > 366 * 86400000)
         throw new BadRequestException('O período máximo é de 366 dias.');
-      where.occurredAt = Between(from, to);
+      qb.andWhere('movement.occurredAt BETWEEN :from AND :to', { from, to });
     } else if (q.dateFrom)
-      where.occurredAt = MoreThanOrEqual(new Date(q.dateFrom));
-    else if (q.dateTo) where.occurredAt = LessThanOrEqual(new Date(q.dateTo));
-    const [data, total] = await this.movements.findAndCount({
-      where,
-      relations: { product: true, performedBy: true },
-      order: { occurredAt: q.sortDirection.toUpperCase() as 'ASC' | 'DESC' },
-      skip: (q.page - 1) * q.limit,
-      take: q.limit,
-    });
+      qb.andWhere('movement.occurredAt>=:from', { from: new Date(q.dateFrom) });
+    else if (q.dateTo)
+      qb.andWhere('movement.occurredAt<=:to', { to: new Date(q.dateTo) });
+    const [data, total] = await qb
+      .orderBy(
+        'movement.occurredAt',
+        q.sortDirection.toUpperCase() as 'ASC' | 'DESC',
+      )
+      .skip((q.page - 1) * q.limit)
+      .take(q.limit)
+      .getManyAndCount();
     return {
       data,
       meta: {

@@ -1,1 +1,46 @@
-import{apiRequest}from'./api';import type{InventoryBalance,Movement,Page,Reservation}from'../types/inventory';const key=()=>crypto.randomUUID();export const inventoryService={list:(q=new URLSearchParams())=>apiRequest<Page<InventoryBalance>>(`/inventory?${q}`),summary:()=>apiRequest<{totalProducts:string;belowMinimum:string;withReservation:string}>('/inventory/summary'),balance:(id:string)=>apiRequest<InventoryBalance>(`/inventory/products/${id}`),movements:(q=new URLSearchParams())=>apiRequest<Page<Movement>>(`/inventory/movements?${q}`),reservations:(q=new URLSearchParams())=>apiRequest<Page<Reservation>>(`/inventory/reservations?${q}`),operation:(kind:'entries'|'exits'|'adjustments'|'reservations',body:unknown,idempotencyKey=key())=>apiRequest(`/inventory/${kind}`,{method:'POST',headers:{'Idempotency-Key':idempotencyKey},body:JSON.stringify(body)}),reservationAction:(id:string,action:'cancel'|'complete')=>apiRequest(`/inventory/reservations/${id}/${action}`,{method:'POST',headers:{'Idempotency-Key':key()}}),reverse:(id:string)=>apiRequest(`/inventory/movements/${id}/reverse`,{method:'POST',headers:{'Idempotency-Key':key()}})}
+import { apiRequest } from "./api";
+import type {
+  InventoryBalance,
+  Movement,
+  Page,
+  Reservation,
+} from "../types/inventory";
+const key = () => crypto.randomUUID();
+export interface InventorySummary {
+  totalProducts: string;
+  belowMinimum: string;
+  withReservation: string;
+  withoutStock: string;
+}
+export const inventoryService = {
+  list: (q = new URLSearchParams()) =>
+    apiRequest<Page<InventoryBalance>>(`/inventory?${q}`),
+  summary: () => apiRequest<InventorySummary>("/inventory/summary"),
+  balance: (id: string) =>
+    apiRequest<InventoryBalance>(`/inventory/products/${id}`),
+  movements: (q = new URLSearchParams()) =>
+    apiRequest<Page<Movement>>(`/inventory/movements?${q}`),
+  movement: (id: string) => apiRequest<Movement>(`/inventory/movements/${id}`),
+  reservations: (q = new URLSearchParams()) =>
+    apiRequest<Page<Reservation>>(`/inventory/reservations?${q}`),
+  operation: (
+    kind: "entries" | "exits" | "adjustments" | "reservations",
+    body: unknown,
+    idempotencyKey = key(),
+  ) =>
+    apiRequest(`/inventory/${kind}`, {
+      method: "POST",
+      headers: { "Idempotency-Key": idempotencyKey },
+      body: JSON.stringify(body),
+    }),
+  reservationAction: (id: string, action: "cancel" | "complete") =>
+    apiRequest(`/inventory/reservations/${id}/${action}`, {
+      method: "POST",
+      headers: { "Idempotency-Key": key() },
+    }),
+  reverse: (id: string) =>
+    apiRequest(`/inventory/movements/${id}/reverse`, {
+      method: "POST",
+      headers: { "Idempotency-Key": key() },
+    }),
+};
