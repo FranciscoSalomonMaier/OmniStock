@@ -19,6 +19,7 @@
     "migration:run:prod": "typeorm migration:run -d dist/database/data-source.js",
     "migration:revert:prod": "typeorm migration:revert -d dist/database/data-source.js",
     "seed:admin": "ts-node src/database/seed-admin.ts",
+    "seed:sales-channels": "ts-node src/database/seed-sales-channels.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",

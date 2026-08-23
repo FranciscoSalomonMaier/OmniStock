@@ -11,6 +11,7 @@ const menu = [
   ['Estoque', [['▦', 'Visão geral', '/inventory', true], ['↕', 'Movimentações', '/inventory/movements', true], ['＋', 'Nova entrada', '/inventory/entries/new', true], ['−', 'Nova saída', '/inventory/exits/new', true], ['≋', 'Ajustar estoque', '/inventory/adjustments/new', true], ['◇', 'Reservas', '/inventory/reservations', true]]],
   ['Minha conta', [['●', 'Perfil', '/profile', false], ['⌁', 'Alterar senha', '/profile/password', false]]],
 ] as const
+const menuWithIntegrations = [...menu.slice(0, -1), ['Integrações', [['⇄', 'Canais de venda', '/integrations', true]]] as const, menu[menu.length - 1]] as const
 const stockWriteLabels=new Set(['Nova entrada','Nova saída','Ajustar estoque'])
 
 export function DashboardLayout() {
@@ -24,7 +25,7 @@ export function DashboardLayout() {
   return <div className="app-shell">
     <aside className={open ? 'sidebar open' : 'sidebar'} aria-label="Menu principal">
       <div className="brand sidebar-brand">OmniStock</div>
-      {menu.map(([group, items]) => { 
+      {menuWithIntegrations.map(([group, items]) => { 
         const collapsible = group !== 'Início'; 
         const isExpanded = !collapsible || expanded[group]; 
     

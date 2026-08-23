@@ -217,3 +217,8 @@ npm.cmd run build
 ```
 
 Para testar concorrência, deixe disponível `1.000` e envie simultaneamente duas reservas com referências e chaves diferentes. Uma deve concluir e outra retornar `409`; o reservado deve permanecer `1.000`.
+# Canais de venda (etapa 7)
+
+Dentro de `api`, execute `npm run migration:run` e `npm run seed:sales-channels`. Para armazenar tokens, configure `MARKETPLACE_TOKEN_ENCRYPTION_KEY` com 32 bytes em Base64 e `MARKETPLACE_TOKEN_ENCRYPTION_KEY_VERSION=v1`. Gere uma chave com `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` e nunca a versione.
+
+As conexões exigem JWT e `X-Company-Id`. Esta etapa prepara contratos e armazenamento seguro, sem OAuth ou chamadas reais aos marketplaces; a validação responde explicitamente quando o conector ainda não existe.

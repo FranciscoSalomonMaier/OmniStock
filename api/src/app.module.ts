@@ -14,6 +14,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { CompaniesModule } from './companies/companies.module';
 import { ProductsModule } from './products/products.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { SalesChannelsModule } from './sales-channels/sales-channels.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { InventoryModule } from './inventory/inventory.module';
     CompaniesModule,
     ProductsModule,
     InventoryModule,
+    SalesChannelsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

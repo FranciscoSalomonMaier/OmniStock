@@ -42,4 +42,6 @@ export const envValidationSchema = Joi.object({
   UPLOAD_DIR: Joi.string().default('uploads'),
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().port().required(),
+  MARKETPLACE_TOKEN_ENCRYPTION_KEY: Joi.string().base64().optional(),
+  MARKETPLACE_TOKEN_ENCRYPTION_KEY_VERSION: Joi.string().default('v1'),
 });
