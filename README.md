@@ -222,3 +222,15 @@ Para testar concorrência, deixe disponível `1.000` e envie simultaneamente dua
 Dentro de `api`, execute `npm run migration:run` e `npm run seed:sales-channels`. Para armazenar tokens, configure `MARKETPLACE_TOKEN_ENCRYPTION_KEY` com 32 bytes em Base64 e `MARKETPLACE_TOKEN_ENCRYPTION_KEY_VERSION=v1`. Gere uma chave com `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` e nunca a versione.
 
 As conexões exigem JWT e `X-Company-Id`. Esta etapa prepara contratos e armazenamento seguro, sem OAuth ou chamadas reais aos marketplaces; a validação responde explicitamente quando o conector ainda não existe.
+
+## Mecanismo comum de marketplaces (etapa 8)
+
+O `MarketplaceConnector` é a única interface de integração externa. O `MarketplaceConnectorRegistry` resolve Mercado Livre, Shopee, Amazon e Magalu por `SalesChannelCode`; canais manuais não entram no registry. O `MarketplaceIntegrationService` valida empresa, conexão, estado e capability antes de chamar um conector. Conectores traduzirão dados externos para `ExternalProduct` e `ExternalOrder`; serviços do ERP continuarão responsáveis por produtos, estoque, pedidos, preços e fiscal.
+
+Todos os quatro conectores estão isolados, desabilitados por padrão e com operações `implemented: false`. Não existem clientes HTTP ou mappers enquanto os formatos oficiais não forem implementados. Habilite um scaffold com `*_CONNECTOR_ENABLED=true`; chamadas ainda retornam `CONNECTOR_NOT_IMPLEMENTED`, nunca sucesso simulado. A próxima etapa prevista é implementar o Mercado Livre com documentação e credenciais reais.
+
+Credenciais são buscadas somente pelo `MarketplaceCredentialProvider`, usando o armazenamento AES-256-GCM existente. Controllers e frontend nunca recebem tokens. O provider serializa refresh concorrente por conexão dentro do processo; um lock distribuído deverá substituir esse mecanismo antes de escalar workers horizontalmente.
+
+Imports possuem cursor, `updatedSince` e `pageSize`; comandos mutáveis exigem `idempotencyKey` nos tipos. Retry, rate limit, circuit breaker, BullMQ, checkpoints e histórico de execuções não foram ativados porque não há operação externa utilizável. Quando houver jobs, payloads devem conter apenas IDs, correlation ID e chave de idempotência — nunca tokens.
+
+Execute os contract tests com `npm test -- --runInBand`. Para adicionar um conector: implemente `MarketplaceConnector`, declare capabilities separando suporte do provedor de implementação, mantenha HTTP em um ApiClient específico, mapeamento em mappers específicos, registre via injeção NestJS e passe pela suíte de contrato.

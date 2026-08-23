@@ -44,4 +44,8 @@ export const envValidationSchema = Joi.object({
   REDIS_PORT: Joi.number().port().required(),
   MARKETPLACE_TOKEN_ENCRYPTION_KEY: Joi.string().base64().optional(),
   MARKETPLACE_TOKEN_ENCRYPTION_KEY_VERSION: Joi.string().default('v1'),
+  MERCADO_LIVRE_CONNECTOR_ENABLED: Joi.boolean().default(false),
+  SHOPEE_CONNECTOR_ENABLED: Joi.boolean().default(false),
+  AMAZON_CONNECTOR_ENABLED: Joi.boolean().default(false),
+  MAGALU_CONNECTOR_ENABLED: Joi.boolean().default(false),
 });

@@ -15,4 +15,6 @@ export class RenameSalesChannelConnectionDto {
   @MaxLength(140)
   displayName: string;
 }
-export class UpdateSalesChannelConnectionDto extends PartialType(RenameSalesChannelConnectionDto) {}
+export class UpdateSalesChannelConnectionDto extends PartialType(
+  RenameSalesChannelConnectionDto,
+) {}

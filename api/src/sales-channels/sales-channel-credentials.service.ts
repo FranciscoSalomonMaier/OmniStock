@@ -17,8 +17,15 @@ export class SalesChannelCredentialsService {
     private readonly encryption: TokenEncryptionService,
   ) {}
 
-  async save(companyId: string, connectionId: string, tokens: SalesChannelTokens) {
-    let credential = await this.repository.findOneBy({ companyId, connectionId });
+  async save(
+    companyId: string,
+    connectionId: string,
+    tokens: SalesChannelTokens,
+  ) {
+    let credential = await this.repository.findOneBy({
+      companyId,
+      connectionId,
+    });
     credential ??= this.repository.create({
       companyId,
       connectionId,
@@ -47,14 +54,35 @@ export class SalesChannelCredentialsService {
     return this.repository.save(credential);
   }
 
-  async get(companyId: string, connectionId: string): Promise<SalesChannelTokens> {
+  async get(
+    companyId: string,
+    connectionId: string,
+  ): Promise<SalesChannelTokens> {
     const value = await this.repository.findOneBy({ companyId, connectionId });
     if (!value) throw new NotFoundException('Credencial não encontrada');
     return {
-      accessToken: value.encryptedAccessToken && value.accessTokenIv && value.accessTokenAuthTag
-        ? this.encryption.decrypt({ ciphertext: value.encryptedAccessToken, iv: value.accessTokenIv, authTag: value.accessTokenAuthTag, keyVersion: value.encryptionKeyVersion }) : undefined,
-      refreshToken: value.encryptedRefreshToken && value.refreshTokenIv && value.refreshTokenAuthTag
-        ? this.encryption.decrypt({ ciphertext: value.encryptedRefreshToken, iv: value.refreshTokenIv, authTag: value.refreshTokenAuthTag, keyVersion: value.encryptionKeyVersion }) : undefined,
+      accessToken:
+        value.encryptedAccessToken &&
+        value.accessTokenIv &&
+        value.accessTokenAuthTag
+          ? this.encryption.decrypt({
+              ciphertext: value.encryptedAccessToken,
+              iv: value.accessTokenIv,
+              authTag: value.accessTokenAuthTag,
+              keyVersion: value.encryptionKeyVersion,
+            })
+          : undefined,
+      refreshToken:
+        value.encryptedRefreshToken &&
+        value.refreshTokenIv &&
+        value.refreshTokenAuthTag
+          ? this.encryption.decrypt({
+              ciphertext: value.encryptedRefreshToken,
+              iv: value.refreshTokenIv,
+              authTag: value.refreshTokenAuthTag,
+              keyVersion: value.encryptionKeyVersion,
+            })
+          : undefined,
     };
   }
 

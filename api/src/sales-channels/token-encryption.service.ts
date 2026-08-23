@@ -1,1 +1,67 @@
-import{Injectable,ServiceUnavailableException}from'@nestjs/common';import{ConfigService}from'@nestjs/config';import{createCipheriv,createDecipheriv,randomBytes}from'crypto';export interface EncryptedValue{ciphertext:string;iv:string;authTag:string;keyVersion:string}@Injectable()export class TokenEncryptionService{private readonly key:Buffer|null;private readonly version:string;constructor(config:ConfigService){const raw=config.get<string>('MARKETPLACE_TOKEN_ENCRYPTION_KEY');this.version=config.get<string>('MARKETPLACE_TOKEN_ENCRYPTION_KEY_VERSION')??'v1';const decoded=raw?Buffer.from(raw,'base64'):null;this.key=decoded?.length===32?decoded:null}isConfigured(){return Boolean(this.key)}getKeyVersion(){return this.version}encrypt(value:string):EncryptedValue{if(!this.key)throw new ServiceUnavailableException('A criptografia de credenciais não está configurada.');const iv=randomBytes(12),cipher=createCipheriv('aes-256-gcm',this.key,iv);const ciphertext=Buffer.concat([cipher.update(value,'utf8'),cipher.final()]);return{ciphertext:ciphertext.toString('base64'),iv:iv.toString('base64'),authTag:cipher.getAuthTag().toString('base64'),keyVersion:this.version}}decrypt(value:EncryptedValue){if(!this.key||value.keyVersion!==this.version)throw new ServiceUnavailableException('Não foi possível acessar a credencial protegida.');try{const decipher=createDecipheriv('aes-256-gcm',this.key,Buffer.from(value.iv,'base64'));decipher.setAuthTag(Buffer.from(value.authTag,'base64'));return Buffer.concat([decipher.update(Buffer.from(value.ciphertext,'base64')),decipher.final()]).toString('utf8')}catch{throw new ServiceUnavailableException('Não foi possível acessar a credencial protegida.')}}}
+import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { createCipheriv, createDecipheriv, randomBytes } from 'crypto';
+export interface EncryptedValue {
+  ciphertext: string;
+  iv: string;
+  authTag: string;
+  keyVersion: string;
+}
+@Injectable()
+export class TokenEncryptionService {
+  private readonly key: Buffer | null;
+  private readonly version: string;
+  constructor(config: ConfigService) {
+    const raw = config.get<string>('MARKETPLACE_TOKEN_ENCRYPTION_KEY');
+    this.version =
+      config.get<string>('MARKETPLACE_TOKEN_ENCRYPTION_KEY_VERSION') ?? 'v1';
+    const decoded = raw ? Buffer.from(raw, 'base64') : null;
+    this.key = decoded?.length === 32 ? decoded : null;
+  }
+  isConfigured() {
+    return Boolean(this.key);
+  }
+  getKeyVersion() {
+    return this.version;
+  }
+  encrypt(value: string): EncryptedValue {
+    if (!this.key)
+      throw new ServiceUnavailableException(
+        'A criptografia de credenciais não está configurada.',
+      );
+    const iv = randomBytes(12),
+      cipher = createCipheriv('aes-256-gcm', this.key, iv);
+    const ciphertext = Buffer.concat([
+      cipher.update(value, 'utf8'),
+      cipher.final(),
+    ]);
+    return {
+      ciphertext: ciphertext.toString('base64'),
+      iv: iv.toString('base64'),
+      authTag: cipher.getAuthTag().toString('base64'),
+      keyVersion: this.version,
+    };
+  }
+  decrypt(value: EncryptedValue) {
+    if (!this.key || value.keyVersion !== this.version)
+      throw new ServiceUnavailableException(
+        'Não foi possível acessar a credencial protegida.',
+      );
+    try {
+      const decipher = createDecipheriv(
+        'aes-256-gcm',
+        this.key,
+        Buffer.from(value.iv, 'base64'),
+      );
+      decipher.setAuthTag(Buffer.from(value.authTag, 'base64'));
+      return Buffer.concat([
+        decipher.update(Buffer.from(value.ciphertext, 'base64')),
+        decipher.final(),
+      ]).toString('utf8');
+    } catch {
+      throw new ServiceUnavailableException(
+        'Não foi possível acessar a credencial protegida.',
+      );
+    }
+  }
+}
