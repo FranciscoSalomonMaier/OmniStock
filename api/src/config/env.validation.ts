@@ -45,6 +45,31 @@ export const envValidationSchema = Joi.object({
   MARKETPLACE_TOKEN_ENCRYPTION_KEY: Joi.string().base64().optional(),
   MARKETPLACE_TOKEN_ENCRYPTION_KEY_VERSION: Joi.string().default('v1'),
   MERCADO_LIVRE_CONNECTOR_ENABLED: Joi.boolean().default(false),
+  MERCADO_LIVRE_CLIENT_ID: Joi.when('MERCADO_LIVRE_CONNECTOR_ENABLED', {
+    is: true,
+    then: Joi.string().required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  MERCADO_LIVRE_CLIENT_SECRET: Joi.when('MERCADO_LIVRE_CONNECTOR_ENABLED', {
+    is: true,
+    then: Joi.string().required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  MERCADO_LIVRE_REDIRECT_URI: Joi.when('MERCADO_LIVRE_CONNECTOR_ENABLED', {
+    is: true,
+    then: Joi.string().uri().required(),
+    otherwise: Joi.string().allow('').optional(),
+  }),
+  MERCADO_LIVRE_AUTH_BASE_URL: Joi.string()
+    .uri()
+    .default('https://auth.mercadolivre.com.br/authorization'),
+  MERCADO_LIVRE_API_BASE_URL: Joi.string()
+    .uri()
+    .default('https://api.mercadolibre.com'),
+  MERCADO_LIVRE_HTTP_TIMEOUT_MS: Joi.number()
+    .integer()
+    .positive()
+    .default(10000),
   SHOPEE_CONNECTOR_ENABLED: Joi.boolean().default(false),
   AMAZON_CONNECTOR_ENABLED: Joi.boolean().default(false),
   MAGALU_CONNECTOR_ENABLED: Joi.boolean().default(false),

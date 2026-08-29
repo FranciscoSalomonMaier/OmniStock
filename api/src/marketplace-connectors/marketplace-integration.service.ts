@@ -8,6 +8,7 @@ import {
   connectorNotImplemented,
   MarketplaceConnectorError,
 } from './core/marketplace-errors';
+import { MarketplaceCredentialProvider } from './core/marketplace-credential.provider';
 import type {
   ConnectorContext,
   MarketplaceCapabilities,
@@ -17,6 +18,7 @@ export class MarketplaceIntegrationService {
   constructor(
     private readonly connections: SalesChannelsService,
     private readonly registry: MarketplaceConnectorRegistry,
+    private readonly credentialProvider: MarketplaceCredentialProvider,
   ) {}
   async capabilities(companyId: string, connectionId: string) {
     const connection = await this.connections.get(companyId, connectionId);
@@ -32,7 +34,14 @@ export class MarketplaceIntegrationService {
     const connector = this.registry.get(connection.channel.code);
     this.assertImplemented(connector.getCapabilities(), 'authorization');
     try {
-      return await connector.validateConnection(this.context(connection));
+      const context = await this.context(connection);
+      const result = await connector.validateConnection(context);
+      await this.connections.clearIntegrationError(
+        companyId,
+        connectionId,
+        userId,
+      );
+      return result;
     } catch (error) {
       await this.connections.recordIntegrationError(
         companyId,
@@ -67,7 +76,13 @@ export class MarketplaceIntegrationService {
       );
     if (!capability.implemented) throw connectorNotImplemented();
   }
-  private context(connection: SalesChannelConnection): ConnectorContext {
+  private async context(
+    connection: SalesChannelConnection,
+  ): Promise<ConnectorContext> {
+    const credentials = await this.credentialProvider.get(
+      connection.companyId,
+      connection.id,
+    );
     return {
       companyId: connection.companyId,
       connectionId: connection.id,
@@ -76,6 +91,7 @@ export class MarketplaceIntegrationService {
       correlationId: randomUUID(),
       operationId: randomUUID(),
       locale: 'pt-BR',
+      credentials,
       metadata: Object.freeze({}),
     };
   }

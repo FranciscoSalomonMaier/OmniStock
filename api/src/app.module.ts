@@ -15,6 +15,7 @@ import { CompaniesModule } from './companies/companies.module';
 import { ProductsModule } from './products/products.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SalesChannelsModule } from './sales-channels/sales-channels.module';
+import { BullModule } from '@nestjs/bullmq';
 
 @Module({
   imports: [
@@ -26,6 +27,15 @@ import { SalesChannelsModule } from './sales-channels/sales-channels.module';
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: createDatabaseConfig,
+    }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        connection: {
+          host: config.getOrThrow<string>('REDIS_HOST'),
+          port: config.getOrThrow<number>('REDIS_PORT'),
+        },
+      }),
     }),
     UsersModule,
     AuthModule,

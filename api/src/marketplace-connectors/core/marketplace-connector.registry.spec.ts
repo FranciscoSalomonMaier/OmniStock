@@ -3,6 +3,7 @@ import { SalesChannelCode } from '../../sales-channels/enums/sales-channel.enums
 import { AmazonConnector } from '../amazon/amazon.connector';
 import { MagaluConnector } from '../magalu/magalu.connector';
 import { MercadoLivreConnector } from '../mercado-livre/mercado-livre.connector';
+import { MercadoLivreApiClient } from '../mercado-livre/mercado-livre-api.client';
 import { ShopeeConnector } from '../shopee/shopee.connector';
 import { MarketplaceConnectorRegistry } from './marketplace-connector.registry';
 import {
@@ -27,7 +28,7 @@ describe('MarketplaceConnectorRegistry', () => {
       AMAZON_CONNECTOR_ENABLED: enabled,
       MAGALU_CONNECTOR_ENABLED: enabled,
     });
-    const ml = new MercadoLivreConnector(config);
+    const ml = new MercadoLivreConnector(config, {} as MercadoLivreApiClient);
     return {
       registry: new MarketplaceConnectorRegistry(
         ml,

@@ -234,3 +234,25 @@ Credenciais são buscadas somente pelo `MarketplaceCredentialProvider`, usando o
 Imports possuem cursor, `updatedSince` e `pageSize`; comandos mutáveis exigem `idempotencyKey` nos tipos. Retry, rate limit, circuit breaker, BullMQ, checkpoints e histórico de execuções não foram ativados porque não há operação externa utilizável. Quando houver jobs, payloads devem conter apenas IDs, correlation ID e chave de idempotência — nunca tokens.
 
 Execute os contract tests com `npm test -- --runInBand`. Para adicionar um conector: implemente `MarketplaceConnector`, declare capabilities separando suporte do provedor de implementação, mantenha HTTP em um ApiClient específico, mapeamento em mappers específicos, registre via injeção NestJS e passe pela suíte de contrato.
+
+## Mercado Livre real (etapa 9)
+
+Documentação oficial consultada em 23/08/2026:
+
+- [Autenticação e autorização](https://developers.mercadolivre.com.br/pt_br/gerenciamento-perguntas-respostas/autenticacao-e-autorizacao)
+- [Consulta de usuários (`GET /users/me`)](https://developers.mercadolivre.com.br/pt_br/produto-consulta-de-usuarios/consulta-de-usuarios)
+- [Itens e buscas](https://developers.mercadolivre.com.br/pt_br/produto-consulta-de-usuarios/itens-e-buscas)
+- [Pedidos](https://developers.mercadolivre.com.br/pt_br/gerenciamento-de-vendas)
+- [Envios](https://developers.mercadolivre.com.br/pt_br/gerenciamento-de-envios)
+- [Sincronização de publicações](https://developers.mercadolivre.com.br/pt_br/produto-consulta-de-usuarios/produto-sincronizacao-de-publicacoes)
+- [Notificações](https://developers.mercadolivre.com.br/produto-receba-notificacoes)
+- [Rate limit / erro 429](https://developers.mercadolivre.com.br/pt_br/usuarios-e-aplicativos/rate-limit-erro-429)
+- [Preços de produtos](https://developers.mercadolivre.com.br/devcenter/api-de-precos)
+
+Crie uma aplicação no DevCenter, cadastre exatamente o callback público HTTPS do backend e configure `MERCADO_LIVRE_CONNECTOR_ENABLED=true`, client ID, client secret e redirect URI. Para desenvolvimento local, use um túnel HTTPS confiável e restrito; não exponha portas, banco, Redis ou Swagger publicamente.
+
+O OAuth guarda somente SHA-256 do state, vinculado a empresa, conexão e usuário, com validade de 10 minutos e consumo transacional único. O callback troca o code no backend, consulta `/users/me`, criptografa os tokens com AES-256-GCM e redireciona ao frontend apenas com status e connection ID. Refresh tokens são rotativos e serializados por conexão.
+
+Imports de anúncios e pedidos usam BullMQ e persistem estruturas intermediárias, sem criar produtos, reservas ou baixas locais. Webhooks são deduplicados por hash, confirmados rapidamente e processados em fila. Jobs contêm apenas IDs. GETs transitórios repetem 429/502/503/504 com backoff e jitter; mutações de estoque/preço não recebem retry HTTP automático.
+
+Limitações: preço de variação permanece bloqueado por falta de um formato oficial geral seguro; atualização de preço standard pode ser recusada quando o anúncio usa automação de preços; revogação remota e NF-e não foram implementadas. Testes automatizados usam mocks e nunca uma conta real.

@@ -137,6 +137,15 @@ export class SalesChannelsService {
     await this.connections.save(x);
     this.audit('integration.failed', x, userId);
   }
+  async clearIntegrationError(companyId: string, id: string, userId: string) {
+    const x = await this.get(companyId, id);
+    x.lastErrorAt = null;
+    x.lastErrorCode = null;
+    x.lastErrorMessage = null;
+    x.updatedByUserId = userId;
+    await this.connections.save(x);
+    this.audit('integration.validated', x, userId);
+  }
   private async view(x: SalesChannelConnection, channel: SalesChannel) {
     const credential = await this.credentials.findOneBy({
       companyId: x.companyId,

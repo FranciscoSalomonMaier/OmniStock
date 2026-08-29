@@ -2,7 +2,6 @@ import { ConfigService } from '@nestjs/config';
 import { SalesChannelCode } from '../../sales-channels/enums/sales-channel.enums';
 import { AmazonConnector } from '../amazon/amazon.connector';
 import { MagaluConnector } from '../magalu/magalu.connector';
-import { MercadoLivreConnector } from '../mercado-livre/mercado-livre.connector';
 import { ShopeeConnector } from '../shopee/shopee.connector';
 import type { ConnectorContext } from './marketplace-types';
 describe('contrato dos conectores não implementados', () => {
@@ -13,7 +12,6 @@ describe('contrato dos conectores não implementados', () => {
     MAGALU_CONNECTOR_ENABLED: true,
   });
   const connectors = [
-    new MercadoLivreConnector(config),
     new ShopeeConnector(config),
     new AmazonConnector(config),
     new MagaluConnector(config),
@@ -21,7 +19,7 @@ describe('contrato dos conectores não implementados', () => {
   const context: ConnectorContext = {
     companyId: 'company',
     connectionId: 'connection',
-    channelCode: SalesChannelCode.MERCADO_LIVRE,
+    channelCode: SalesChannelCode.SHOPEE,
     externalAccountId: null,
     correlationId: 'correlation',
     operationId: 'operation',
