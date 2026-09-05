@@ -27,6 +27,7 @@ import {
   MERCADO_LIVRE_QUEUE,
   MercadoLivreJobPayload,
 } from './mercado-livre.jobs';
+import { OrderImportService } from '../../orders/order-import.service';
 @Processor(MERCADO_LIVRE_QUEUE, { concurrency: 3 })
 export class MercadoLivreProcessor extends WorkerHost {
   constructor(
@@ -44,6 +45,7 @@ export class MercadoLivreProcessor extends WorkerHost {
     private readonly notifications: Repository<MarketplaceNotification>,
     private readonly connector: MercadoLivreConnector,
     private readonly integration: MercadoLivreIntegrationService,
+    private readonly orderImporter: OrderImportService,
   ) {
     super();
   }
@@ -197,8 +199,18 @@ export class MercadoLivreProcessor extends WorkerHost {
         status: null,
         pageSize: 50,
       });
-      for (const order of result.items)
-        await this.upsertOrder(context.companyId, context.connectionId, order);
+      for (const order of result.items) {
+        const imported = await this.upsertOrder(
+          context.companyId,
+          context.connectionId,
+          order,
+        );
+        const connection = await this.connections.findOneByOrFail({
+          id: context.connectionId,
+          companyId: context.companyId,
+        });
+        await this.orderImporter.importMarketplace(connection, order, imported);
+      }
       run.processedCount += result.items.length;
       run.successCount += result.items.length;
       cursor = result.nextCursor;
@@ -255,5 +267,6 @@ export class MercadoLivreProcessor extends WorkerHost {
         }),
       ),
     );
+    return entity;
   }
 }

@@ -295,3 +295,24 @@ O OAuth guarda somente SHA-256 do state, vinculado a empresa, conexão e usuári
 Imports de anúncios e pedidos usam BullMQ e persistem estruturas intermediárias, sem criar produtos, reservas ou baixas locais. Webhooks são deduplicados por hash, confirmados rapidamente e processados em fila. Jobs contêm apenas IDs. GETs transitórios repetem 429/502/503/504 com backoff e jitter; mutações de estoque/preço não recebem retry HTTP automático.
 
 Limitações: preço de variação permanece bloqueado por falta de um formato oficial geral seguro; atualização de preço standard pode ser recusada quando o anúncio usa automação de preços; revogação remota e NF-e não foram implementadas. Testes automatizados usam mocks e nunca uma conta real.
+# Etapa 11 — pedidos internos
+
+O módulo `orders` transforma o `ExternalOrder` normalizado pelos conectores em um pedido interno independente do marketplace. O fluxo do Mercado Livre mantém `MarketplaceOrderImport` como registro intermediário e cria/atualiza o pedido interno pela chave `(companyId, salesChannelConnectionId, externalOrderId)`. Reimportações não duplicam pedidos; eventos externos mais antigos são ignorados.
+
+Cada empresa possui uma linha em `company_order_sequences`. O próximo número é obtido em transação com bloqueio pessimista, nunca com `COUNT(*)`, e é exibido com seis dígitos. Cliente, endereço, itens, preços e dados fiscais são snapshots do momento da venda. Alterações posteriores em `Product` não reescrevem o histórico do pedido.
+
+Os estados são deliberadamente separados em `OrderStatus`, `PaymentStatus`, `ShippingStatus` e `FiscalStatus`. O `MercadoLivreOrderStatusMapper` traduz estados externos; valores desconhecidos assumem estados seguros e geram `UNKNOWN_EXTERNAL_STATUS`. A política `OrderStatusTransitionService` impede saltos manuais inválidos. Toda alteração de estado é acompanhada por histórico imutável.
+
+Itens são resolvidos por `MarketplaceListing` e `ProductMarketplaceLink` ativo. Um item sem vínculo permanece com `productId` nulo e gera `PRODUCT_LINK_MISSING`; nenhum produto é criado automaticamente. Divergência de totais, ausência de endereço/pagamento e status desconhecidos também geram pendências. Comissões ausentes permanecem `null` com `NOT_AVAILABLE`, sem estimativas fictícias.
+
+Rotas empresariais (JWT + `X-Company-Id`):
+
+- `GET /api/orders`, `/api/orders/summary` e `/api/orders/:id`;
+- `GET /api/orders/:id/history`, `/issues`, `/shipment`, `/payments` e `/fiscal`;
+- `POST /api/orders/:id/cancel`, `/reprocess` e `/issues/:issueId/resolve`.
+
+Todos os perfis podem consultar. Cancelamento exige `ADMIN`, `MANAGER` ou `BILLING`; reprocessamento exige `ADMIN`, `MANAGER` ou `SUPPORT`; resolução aceita todos exceto `VIEWER`. Documento/endereço são mascarados para `STOCKIST` e `VIEWER`. Pedidos de outra empresa retornam 404.
+
+Execute `npm run migration:run` na API após atualizar. Para validar: `npm test`, `npm run lint` e `npm run build` na API; `npm run lint` e `npm run build` no frontend.
+
+Limitações desta etapa: não há criação manual de pedidos, emissão de NF-e nem cálculo tributário; o conector atual recebe dados limitados de cliente, endereço, pagamento, comissão e envio do endpoint de pedidos do Mercado Livre. Importar ou cancelar pedidos não cria reservas, baixas ou estornos. A próxima etapa deverá integrar o ciclo do pedido exclusivamente pelo `InventoryService`, com idempotência transacional.

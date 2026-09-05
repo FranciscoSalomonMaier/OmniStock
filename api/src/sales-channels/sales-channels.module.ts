@@ -34,6 +34,7 @@ import {
 import { SalesChannelCredentialsService } from './sales-channel-credentials.service';
 import { SalesChannelsService } from './sales-channels.service';
 import { TokenEncryptionService } from './token-encryption.service';
+import { OrdersModule } from '../orders/orders.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { TokenEncryptionService } from './token-encryption.service';
       MarketplaceNotification,
     ]),
     CompaniesModule,
+    OrdersModule,
     BullModule.registerQueue({ name: MERCADO_LIVRE_QUEUE }),
   ],
   controllers: [
