@@ -1,0 +1,39 @@
+export enum ProductMarketplaceLinkStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  INVALID = 'INVALID',
+  PENDING_VALIDATION = 'PENDING_VALIDATION',
+}
+
+export enum ProductMarketplaceLinkSource {
+  MANUAL = 'MANUAL',
+  SKU_EXACT_MATCH = 'SKU_EXACT_MATCH',
+  BARCODE_EXACT_MATCH = 'BARCODE_EXACT_MATCH',
+  IMPORTED = 'IMPORTED',
+  API = 'API',
+  MIGRATION = 'MIGRATION',
+}
+
+export enum ProductMarketplaceMatchedByField {
+  SKU = 'SKU',
+  BARCODE = 'BARCODE',
+  EXTERNAL_ID = 'EXTERNAL_ID',
+  MANUAL_SELECTION = 'MANUAL_SELECTION',
+  NONE = 'NONE',
+}
+
+export enum ProductMarketplaceLinkValidationStatus {
+  VALID = 'VALID',
+  WARNING = 'WARNING',
+  INVALID = 'INVALID',
+  NOT_VALIDATED = 'NOT_VALIDATED',
+}
+
+export enum ProductMarketplaceLinkEvent {
+  LINK_CREATED = 'LINK_CREATED',
+  SUGGESTION_ACCEPTED = 'SUGGESTION_ACCEPTED',
+  BULK_LINK_CREATED = 'BULK_LINK_CREATED',
+  LINK_VALIDATED = 'LINK_VALIDATED',
+  LINK_UNLINKED = 'LINK_UNLINKED',
+  LINK_CONFLICT = 'LINK_CONFLICT',
+}

@@ -29,16 +29,18 @@ describe('MarketplaceIntegrationService', () => {
       }),
       validateConnection,
     } as unknown as MarketplaceConnector;
+    const clearIntegrationError = jest.fn();
     const connections = {
       get: jest.fn().mockResolvedValue(connection),
       recordIntegrationError: jest.fn(),
-      clearIntegrationError: jest.fn(),
+      clearIntegrationError,
     } as unknown as SalesChannelsService;
     const registry = {
       get: jest.fn().mockReturnValue(connector),
     } as unknown as MarketplaceConnectorRegistry;
+    const getCredentials = jest.fn().mockResolvedValue(credentials);
     const credentialProvider = {
-      get: jest.fn().mockResolvedValue(credentials),
+      get: getCredentials,
     } as unknown as MarketplaceCredentialProvider;
     const service = new MarketplaceIntegrationService(
       connections,
@@ -53,7 +55,7 @@ describe('MarketplaceIntegrationService', () => {
         'user-id',
       ),
     ).resolves.toEqual({ valid: true });
-    expect(credentialProvider.get).toHaveBeenCalledWith(
+    expect(getCredentials).toHaveBeenCalledWith(
       connection.companyId,
       connection.id,
     );
@@ -65,7 +67,7 @@ describe('MarketplaceIntegrationService', () => {
         credentials,
       }),
     );
-    expect(connections.clearIntegrationError).toHaveBeenCalledWith(
+    expect(clearIntegrationError).toHaveBeenCalledWith(
       connection.companyId,
       connection.id,
       'user-id',

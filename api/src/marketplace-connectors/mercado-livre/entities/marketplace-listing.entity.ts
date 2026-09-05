@@ -3,9 +3,13 @@ import {
   CreateDateColumn,
   Entity,
   Index,
+  JoinColumn,
+  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { SalesChannelConnection } from '../../../sales-channels/entities/sales-channel-connection.entity';
+import { SalesChannel } from '../../../sales-channels/entities/sales-channel.entity';
 @Entity('marketplace_listings')
 @Index(['companyId', 'connectionId', 'externalItemId', 'externalVariationId'], {
   unique: true,
@@ -44,6 +48,12 @@ export class MarketplaceListing {
   @Column({ name: 'thumbnail_url', type: 'text', nullable: true })
   thumbnailUrl: string | null;
   @Column({ name: 'last_synced_at', type: 'timestamptz' }) lastSyncedAt: Date;
+  @ManyToOne(() => SalesChannelConnection, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'connection_id' })
+  connection: SalesChannelConnection;
+  @ManyToOne(() => SalesChannel, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'sales_channel_id' })
+  channel: SalesChannel;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })

@@ -16,6 +16,7 @@ import { ProductsModule } from './products/products.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SalesChannelsModule } from './sales-channels/sales-channels.module';
 import { BullModule } from '@nestjs/bullmq';
+import { ProductMarketplaceLinksModule } from './product-marketplace-links/product-marketplace-links.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { BullModule } from '@nestjs/bullmq';
     AuthModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),
     CompaniesModule,
+    ProductMarketplaceLinksModule,
     ProductsModule,
     InventoryModule,
     SalesChannelsModule,

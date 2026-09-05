@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCompany } from "../../hooks/useCompany";
 import { integrationService } from "../../services/integration.service";
@@ -9,7 +9,7 @@ export function IntegrationsPage() {
     [connections, setConnections] = useState<ChannelConnection[]>([]),
     [error, setError] = useState("");
   const canManage = ["ADMIN", "MANAGER"].includes(activeMembership?.role ?? "");
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const [a, b] = await Promise.all([
         integrationService.catalog(),
@@ -23,10 +23,12 @@ export function IntegrationsPage() {
         e instanceof Error ? e.message : "Falha ao carregar integrações",
       );
     }
-  }
+  }, []);
   useEffect(() => {
-    if (activeCompany) void load();
-  }, [activeCompany?.id]);
+    if (!activeCompany) return;
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [activeCompany, load]);
   async function connect(channel: SalesChannel) {
     const name = window.prompt(
       "Nome para identificar esta conexão",

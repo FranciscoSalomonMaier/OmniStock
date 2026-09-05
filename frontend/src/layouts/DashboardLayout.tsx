@@ -11,12 +11,12 @@ const menu = [
   ['Estoque', [['▦', 'Visão geral', '/inventory', true], ['↕', 'Movimentações', '/inventory/movements', true], ['＋', 'Nova entrada', '/inventory/entries/new', true], ['−', 'Nova saída', '/inventory/exits/new', true], ['≋', 'Ajustar estoque', '/inventory/adjustments/new', true], ['◇', 'Reservas', '/inventory/reservations', true]]],
   ['Minha conta', [['●', 'Perfil', '/profile', false], ['⌁', 'Alterar senha', '/profile/password', false]]],
 ] as const
-const menuWithIntegrations = [...menu.slice(0, -1), ['Integrações', [['⇄', 'Canais de venda', '/integrations', true]]] as const, menu[menu.length - 1]] as const
+const menuWithIntegrations = [...menu.slice(0, -1), ['Integrações', [['⇄', 'Canais de venda', '/integrations', true], ['⇆', 'Vinculação de anúncios', '/marketplace-links', true]]] as const, menu[menu.length - 1]] as const
 const stockWriteLabels=new Set(['Nova entrada','Nova saída','Ajustar estoque'])
 
 export function DashboardLayout() {
   const [open, setOpen] = useState(false)
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ Empresas: false, Produtos: false, Estoque: false, 'Minha conta': false })
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({ Empresas: false, Produtos: false, Estoque: false, 'Integrações': false, 'Minha conta': false })
   const { user, logout } = useAuth()
   const { companies, activeCompany, activeMembership, isLoading, pendingCompany, requestCompanySwitch, confirmCompanySwitch, cancelCompanySwitch } = useCompany()
   const navigate = useNavigate()

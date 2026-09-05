@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useCompany } from "../../hooks/useCompany";
 import { integrationService } from "../../services/integration.service";
@@ -28,7 +28,7 @@ export function IntegrationDetailsPage() {
     [error, setError] = useState("");
   const canManage = ["ADMIN", "MANAGER"].includes(activeMembership?.role ?? ""),
     isAdmin = activeMembership?.role === "ADMIN";
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const [connection, capabilities] = await Promise.all([
         integrationService.get(id),
@@ -40,10 +40,11 @@ export function IntegrationDetailsPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha ao carregar conexão");
     }
-  }
-  useEffect(() => {
-    void load();
   }, [id]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
   async function action(fn: () => Promise<unknown>) {
     try {
       await fn();

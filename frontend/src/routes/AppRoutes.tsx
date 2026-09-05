@@ -31,6 +31,9 @@ import { IntegrationDetailsPage } from "../pages/integrations/IntegrationDetails
 import { MercadoLivreCallbackPage } from "../pages/integrations/MercadoLivreCallbackPage";
 import { MercadoLivreListingsPage } from "../pages/integrations/MercadoLivreListingsPage";
 import { MercadoLivreOrdersPage } from "../pages/integrations/MercadoLivreOrdersPage";
+import { MarketplaceLinksPage } from "../pages/marketplace-links/MarketplaceLinksPage";
+import { ProductMarketplaceLinksPage } from "../pages/marketplace-links/ProductMarketplaceLinksPage";
+import { UnlinkedMarketplaceListingsPage } from "../pages/marketplace-links/UnlinkedMarketplaceListingsPage";
 export function AppRoutes() {
   return (
     <Routes>
@@ -91,6 +94,11 @@ export function AppRoutes() {
               element={<InventoryProductPage />}
             />
             <Route path="/integrations" element={<IntegrationsPage />} />
+            <Route path="/marketplace-links" element={<MarketplaceLinksPage />} />
+            <Route path="/marketplace-links/unlinked" element={<UnlinkedMarketplaceListingsPage />} />
+            <Route path="/marketplace-links/suggestions" element={<UnlinkedMarketplaceListingsPage suggestionsOnly />} />
+            <Route path="/products/:id/marketplace-links" element={<ProductMarketplaceLinksPage />} />
+            <Route path="/integrations/:connectionId/listings/unlinked" element={<UnlinkedMarketplaceListingsPage />} />
             <Route
               path="/integrations/:id"
               element={<IntegrationDetailsPage />}

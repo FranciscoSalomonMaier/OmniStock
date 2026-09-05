@@ -2,6 +2,45 @@
 
 ERP com API NestJS, PostgreSQL/TypeORM e frontend React. A autenticação usa access token JWT em memória e refresh token em cookie `httpOnly` com rotação.
 
+## Vinculação entre produtos e anúncios (etapa 10)
+
+`Product` é o cadastro interno e continua sendo a fonte de SKU, preço interno e estoque central. `MarketplaceListing` é a fotografia mais recente de um alvo externo importado do canal: conta, anúncio, variação, SKU externo, preço, quantidade e status. `ProductMarketplaceLink` apenas relaciona essas duas fontes; não copia tokens, preço, estoque ou identidade do marketplace.
+
+- Um produto pode possuir vários anúncios em canais e contas diferentes.
+- Cada linha de anúncio ou variação pode possuir somente um vínculo `ACTIVE`.
+- Variações são linhas independentes em `marketplace_listings`, identificadas por `external_item_id` e `external_variation_id`; por isso podem apontar para produtos diferentes.
+- Kits, bundles e composições de vários produtos internos não fazem parte desta etapa.
+- A revinculação cria um novo registro e mantém o vínculo anterior como `INACTIVE`.
+- A desvinculação não exclui produto nem anúncio e preserva usuário, data, motivo e auditoria.
+- Todas as consultas usam a empresa do header `X-Company-Id`; o body não aceita `companyId`.
+
+### Sugestões
+
+A primeira versão sugere somente correspondência exata e não ambígua por SKU. O normalizador remove espaços externos e converte para maiúsculas, preservando caracteres significativos. SKU vazio, produto inativo, mais de um candidato ou empresa diferente não produz sugestão. Uma sugestão nunca cria vínculo sozinha: o usuário precisa confirmar e o backend recalcula o critério na aceitação.
+
+### Concorrência, idempotência e auditoria
+
+As mutações exigem `Idempotency-Key`, persistida em `product_marketplace_link_audits` com hash da requisição e resposta. A criação usa transação e lock pessimista no anúncio. O índice parcial PostgreSQL `UQ_pml_active_listing` garante, inclusive sob concorrência, apenas um vínculo ativo por `(company_id, marketplace_listing_id)`. Violações retornam HTTP 409 com `MARKETPLACE_LISTING_ALREADY_LINKED`.
+
+Permissões: todos os membros ativos podem consultar. `ADMIN`, `MANAGER` e `STOCKIST` podem criar, aceitar sugestão e validar. Apenas `ADMIN` e `MANAGER` podem vincular em lote ou desvincular.
+
+### Endpoints principais
+
+- `POST/GET /api/product-marketplace-links`
+- `GET /api/product-marketplace-links/:id`
+- `POST /api/product-marketplace-links/:id/unlink`
+- `POST /api/product-marketplace-links/:id/validate`
+- `POST /api/product-marketplace-links/bulk`
+- `GET /api/marketplace-listings/unlinked`
+- `GET /api/marketplace-listings/:id/link-suggestions`
+- `POST /api/marketplace-listings/:id/accept-suggestion`
+- `GET /api/products/:id/marketplace-links`
+- `GET /api/products/unlinked-marketplaces`
+
+Execute a migration com `cd api` e `npm run migration:run`. Para testar: `npm test`, `npm run lint` e `npm run build`; no frontend, `npm run lint` e `npm run build`.
+
+A criação do vínculo não sincroniza nem altera estoque ou preço. Ela prepara o caminho futuro `InventoryBalance.availableQuantity → vínculo ativo → anúncio → conexão → MarketplaceConnector`. Uma futura sincronização deverá sempre usar quantidade disponível (`currentQuantity - reservedQuantity`), mostrar valores interno/externo e exigir confirmação antes de sobrescrever o canal.
+
 ## Requisitos
 
 - Node.js 20+ e npm

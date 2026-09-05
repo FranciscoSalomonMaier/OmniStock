@@ -10,6 +10,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { PartialType } from '@nestjs/swagger';
+import { normalizeSku } from '../../common/utils/normalize-sku';
 import {
   MerchandiseOrigin,
   ProductStatus,
@@ -19,12 +20,12 @@ const trim = (v: unknown): unknown =>
   typeof v === 'string' ? v.trim() || null : v;
 const digits = (v: unknown): unknown =>
   typeof v === 'string' ? v.replace(/\D/g, '') || null : v;
-const normalizeSku = (value: unknown): unknown =>
-  typeof value === 'string' ? value.trim().toUpperCase() : value;
 const normalizeBarcode = (value: unknown): unknown =>
   typeof value === 'string' ? value.replace(/\s/g, '') || null : value;
+const transformSku = (value: unknown): unknown =>
+  typeof value === 'string' ? normalizeSku(value) : value;
 export class CreateProductDto {
-  @Transform(({ value }) => normalizeSku(value as unknown))
+  @Transform(({ value }) => transformSku(value as unknown))
   @IsString()
   @MinLength(1)
   @MaxLength(64)
