@@ -18,6 +18,7 @@ import type {
   ExternalProduct,
   ImportOrdersInput,
   ImportOrdersResult,
+  GetOrderInput,
   ImportProductsInput,
   ImportProductsResult,
   MarketplaceCapabilities,
@@ -166,6 +167,18 @@ export class MercadoLivreConnector implements MarketplaceConnector {
       importedAt: new Date(),
       providerRequestId: null,
     };
+  }
+  async getOrder(input: GetOrderInput): Promise<ExternalOrder> {
+    const order = await this.api.getOrder(
+      this.accessToken(input.context),
+      input.externalOrderId,
+    );
+    if (String(order.seller.id) !== this.seller(input.context))
+      throw new MarketplaceConnectorError(
+        'RESOURCE_NOT_FOUND',
+        'Pedido não encontrado para esta conta.',
+      );
+    return this.mapOrder(order);
   }
   async updateStock(input: UpdateStockInput): Promise<UpdateStockResult> {
     if (

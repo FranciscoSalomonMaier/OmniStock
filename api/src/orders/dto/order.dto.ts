@@ -15,6 +15,7 @@ import {
 } from 'class-validator';
 import {
   FiscalStatus,
+  OrderProcessingStatus,
   OrderSource,
   OrderStatus,
   PaymentStatus,
@@ -39,6 +40,9 @@ export class ListOrdersDto {
   @IsOptional() @IsEnum(PaymentStatus) paymentStatus?: PaymentStatus;
   @IsOptional() @IsEnum(ShippingStatus) shippingStatus?: ShippingStatus;
   @IsOptional() @IsEnum(FiscalStatus) fiscalStatus?: FiscalStatus;
+  @IsOptional()
+  @IsEnum(OrderProcessingStatus)
+  processingStatus?: OrderProcessingStatus;
   @IsOptional() @IsString() customerName?: string;
   @IsOptional() @IsString() productSku?: string;
   @IsOptional() @IsDateString() dateFrom?: string;
@@ -47,6 +51,18 @@ export class ListOrdersDto {
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   withIssues?: boolean;
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  withoutProductLink?: boolean;
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  withoutStock?: boolean;
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  withProcessingError?: boolean;
   @IsOptional()
   @IsIn([
     'internalNumber',

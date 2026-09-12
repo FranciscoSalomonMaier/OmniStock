@@ -295,6 +295,44 @@ O OAuth guarda somente SHA-256 do state, vinculado a empresa, conexão e usuári
 Imports de anúncios e pedidos usam BullMQ e persistem estruturas intermediárias, sem criar produtos, reservas ou baixas locais. Webhooks são deduplicados por hash, confirmados rapidamente e processados em fila. Jobs contêm apenas IDs. GETs transitórios repetem 429/502/503/504 com backoff e jitter; mutações de estoque/preço não recebem retry HTTP automático.
 
 Limitações: preço de variação permanece bloqueado por falta de um formato oficial geral seguro; atualização de preço standard pode ser recusada quando o anúncio usa automação de preços; revogação remota e NF-e não foram implementadas. Testes automatizados usam mocks e nunca uma conta real.
+# Etapa 12 — entrada confiável de pedidos
+
+Notificações `orders_v2` do Mercado Livre são associadas internamente à conexão por `user_id`, sanitizadas, deduplicadas no PostgreSQL e enfileiradas. O webhook é somente um sinal: o worker consulta `GET /orders/{id}` e usa o modelo normalizado do conector. Tokens e cabeçalhos confidenciais não são persistidos nem registrados em logs.
+
+Filas BullMQ:
+
+- `marketplace-order-import`: consulta e processa um pedido;
+- `marketplace-order-reconciliation`: varre contas conectadas com paginação e sobreposição;
+- `marketplace-order-dead-letter`: retém jobs que esgotaram as tentativas.
+
+O status operacional é separado do comercial: `RECEIVED`, `IMPORTING`, `PENDING_PRODUCT_LINK`, `PENDING_STOCK`, `READY_FOR_BILLING` e `PROCESSING_ERROR`. Produtos são resolvidos somente por vínculos existentes. Pedidos pagos e totalmente vinculados reservam os itens pelo `InventoryService`, com referência determinística e ajuste idempotente. Cancelamentos liberam apenas reservas ativas. Ao concluir, uma entrada idempotente é gravada em `order_billing_outbox`; um futuro consumidor deverá publicá-la ao módulo fiscal.
+
+Rotas administrativas, sempre com JWT e `X-Company-Id`:
+
+- `GET /api/marketplace-webhook-events?status=FAILED`;
+- `POST /api/marketplace-webhook-events/:id/retry`;
+- `POST /api/marketplace-accounts/:id/sync-orders`;
+- `POST /api/orders/:id/reprocess`;
+- `POST /api/orders/:id/retry-stock-reservation`.
+
+```env
+ORDER_SYNC_ENABLED=true
+ORDER_SYNC_CRON=*/5 * * * *
+ORDER_SYNC_OVERLAP_MINUTES=10
+ORDER_IMPORT_MAX_ATTEMPTS=5
+ORDER_IMPORT_CONCURRENCY=5
+```
+
+Execute `npm run migration:run` em `api`. Redis, PostgreSQL e a conexão Mercado Livre devem estar ativos. Para falhas, consulte os eventos administrativos, logs pelo `correlationId` e a dead-letter. Reprocessamentos retornam um job sem chamar o marketplace dentro da requisição.
+
+Payload fictício e sanitizado:
+
+```json
+{"_id":"event-example","resource":"/orders/123456","user_id":987654,"topic":"orders_v2","application_id":123,"attempts":1,"sent":"2026-09-05T12:00:00Z"}
+```
+
+Referências oficiais: [notificações](https://developers.mercadolivre.com.br/produto-receba-notificacoes) e [pedidos](https://developers.mercadolivre.com.br/pt_br/gerenciamento-de-vendas).
+
 # Etapa 11 — pedidos internos
 
 O módulo `orders` transforma o `ExternalOrder` normalizado pelos conectores em um pedido interno independente do marketplace. O fluxo do Mercado Livre mantém `MarketplaceOrderImport` como registro intermediário e cria/atualiza o pedido interno pela chave `(companyId, salesChannelConnectionId, externalOrderId)`. Reimportações não duplicam pedidos; eventos externos mais antigos são ignorados.

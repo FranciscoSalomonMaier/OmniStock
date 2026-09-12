@@ -10,6 +10,8 @@ import type {
   ExchangeAuthorizationCodeInput,
   ImportOrdersInput,
   ImportOrdersResult,
+  GetOrderInput,
+  ExternalOrder,
   ImportProductsInput,
   ImportProductsResult,
   MarketplaceCapabilities,
@@ -48,6 +50,9 @@ export abstract class UnimplementedMarketplaceConnector implements MarketplaceCo
     return this.unavailable(input);
   }
   importOrders(input: ImportOrdersInput): Promise<ImportOrdersResult> {
+    return this.unavailable(input);
+  }
+  getOrder(input: GetOrderInput): Promise<ExternalOrder> {
     return this.unavailable(input);
   }
   updateStock(input: UpdateStockInput): Promise<UpdateStockResult> {

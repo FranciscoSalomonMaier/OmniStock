@@ -3,6 +3,7 @@ import { DataSource, EntityManager, IsNull } from 'typeorm';
 import type { ExternalOrder } from '../marketplace-connectors/core/marketplace-types';
 import { MarketplaceListing } from '../marketplace-connectors/mercado-livre/entities/marketplace-listing.entity';
 import { MarketplaceOrderImport } from '../marketplace-connectors/mercado-livre/entities/marketplace-order-import.entity';
+import { MarketplaceOrderImportItem } from '../marketplace-connectors/mercado-livre/entities/marketplace-order-import-item.entity';
 import { ProductMarketplaceLink } from '../product-marketplace-links/entities/product-marketplace-link.entity';
 import { ProductMarketplaceLinkStatus } from '../product-marketplace-links/enums/product-marketplace-link.enums';
 import { Product } from '../products/entities/product.entity';
@@ -21,6 +22,7 @@ import {
   PaymentMethod,
   PaymentStatus,
   ShippingStatus,
+  OrderProcessingStatus,
 } from './enums/order.enums';
 import {
   CompanyOrderSequence,
@@ -44,6 +46,64 @@ export class OrderImportService {
     private readonly db: DataSource,
     private readonly mapper: MercadoLivreOrderStatusMapper,
   ) {}
+  async ingestMarketplace(
+    connection: SalesChannelConnection,
+    external: ExternalOrder,
+    reprocessing = false,
+  ) {
+    const imported = await this.db.transaction(async (m) => {
+      const repository = m.getRepository(MarketplaceOrderImport);
+      let record = await repository.findOneBy({
+        companyId: connection.companyId,
+        connectionId: connection.id,
+        externalOrderId: external.externalId,
+      });
+      record ??= repository.create({
+        companyId: connection.companyId,
+        connectionId: connection.id,
+        externalOrderId: external.externalId,
+      });
+      Object.assign(record, {
+        status: external.status,
+        paymentStatus: external.paymentStatus,
+        shippingStatus: external.shippingStatus,
+        buyerNickname: external.buyer.name,
+        purchasedAt: external.purchasedAt,
+        externalUpdatedAt: external.updatedAt,
+        currency: external.currency,
+        totalAmount: external.totalAmount,
+        shipmentId:
+          typeof external.metadata.shipmentId === 'string'
+            ? external.metadata.shipmentId
+            : null,
+        lastSyncedAt: new Date(),
+      });
+      record = await repository.save(record);
+      const itemRepository = m.getRepository(MarketplaceOrderImportItem);
+      await itemRepository.delete({
+        companyId: connection.companyId,
+        orderImportId: record.id,
+      });
+      await itemRepository.save(
+        external.items.map((item) =>
+          itemRepository.create({
+            companyId: connection.companyId,
+            orderImportId: record.id,
+            externalItemId: item.externalItemId,
+            externalVariationId: item.variationId,
+            externalSku: item.externalSku,
+            title: item.title,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.totalPrice,
+            currency: external.currency,
+          }),
+        ),
+      );
+      return record;
+    });
+    return this.importMarketplace(connection, external, imported, reprocessing);
+  }
   async importMarketplace(
     connection: SalesChannelConnection,
     external: ExternalOrder,
@@ -97,6 +157,7 @@ export class OrderImportService {
         externalOrderId: external.externalId,
         externalOrderNumber: external.externalNumber,
         status: mapped.order,
+        processingStatus: OrderProcessingStatus.IMPORTING,
         paymentStatus: mapped.payment,
         shippingStatus: mapped.shipping,
         fiscalStatus: mapped.fiscal,
@@ -187,9 +248,6 @@ export class OrderImportService {
       .getRepository(OrderIssue)
       .delete({ companyId: o.companyId, orderId: o.id });
     await m
-      .getRepository(OrderItem)
-      .delete({ companyId: o.companyId, orderId: o.id });
-    await m
       .getRepository(OrderAddress)
       .delete({ companyId: o.companyId, orderId: o.id });
     await m
@@ -250,12 +308,20 @@ export class OrderImportService {
             .getRepository(Product)
             .findOneBy({ companyId: o.companyId, id: link.productId })
         : null;
+      const existingItem = await m.getRepository(OrderItem).findOneBy({
+        companyId: o.companyId,
+        orderId: o.id,
+        externalItemId: x.externalItemId,
+        externalVariationId: x.variationId ?? IsNull(),
+      });
       await m.getRepository(OrderItem).save({
+        id: existingItem?.id,
         companyId: o.companyId,
         orderId: o.id,
         productId: product?.id ?? null,
         productMarketplaceLinkId: link?.id ?? null,
         marketplaceListingId: listing?.id ?? null,
+        inventoryReservationId: existingItem?.inventoryReservationId ?? null,
         externalItemId: x.externalItemId,
         externalVariationId: x.variationId,
         externalSku: x.externalSku,

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CompaniesModule } from '../companies/companies.module';
+import { InventoryModule } from '../inventory/inventory.module';
 import { MarketplaceListing } from '../marketplace-connectors/mercado-livre/entities/marketplace-listing.entity';
 import { MarketplaceOrderImportItem } from '../marketplace-connectors/mercado-livre/entities/marketplace-order-import-item.entity';
 import { MarketplaceOrderImport } from '../marketplace-connectors/mercado-livre/entities/marketplace-order-import.entity';
@@ -18,12 +19,14 @@ import {
   OrderPayment,
   OrderShipment,
   OrderStatusHistory,
+  OrderBillingOutbox,
 } from './entities/order.entity';
 import { MercadoLivreOrderStatusMapper } from './mappers/mercado-livre-order-status.mapper';
 import { OrderImportService } from './order-import.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
 import { OrdersController } from './orders.controller';
 import { OrdersService } from './orders.service';
+import { OrderProcessingService } from './order-processing.service';
 const entities = [
   Order,
   CompanyOrderSequence,
@@ -35,6 +38,7 @@ const entities = [
   OrderFiscalData,
   OrderIssue,
   OrderStatusHistory,
+  OrderBillingOutbox,
   MarketplaceOrderImport,
   MarketplaceOrderImportItem,
   MarketplaceListing,
@@ -43,14 +47,19 @@ const entities = [
   SalesChannelConnection,
 ];
 @Module({
-  imports: [TypeOrmModule.forFeature(entities), CompaniesModule],
+  imports: [
+    TypeOrmModule.forFeature(entities),
+    CompaniesModule,
+    InventoryModule,
+  ],
   controllers: [OrdersController],
   providers: [
     OrdersService,
     OrderImportService,
     OrderStatusTransitionService,
     MercadoLivreOrderStatusMapper,
+    OrderProcessingService,
   ],
-  exports: [OrderImportService],
+  exports: [OrderImportService, OrderProcessingService],
 })
 export class OrdersModule {}

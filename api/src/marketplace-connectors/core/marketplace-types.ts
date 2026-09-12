@@ -159,6 +159,10 @@ export interface ImportOrdersResult {
   importedAt: Date;
   providerRequestId: string | null;
 }
+export interface GetOrderInput {
+  context: ConnectorContext;
+  externalOrderId: string;
+}
 export interface UpdateStockInput {
   context: ConnectorContext;
   externalProductId: string;

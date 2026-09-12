@@ -32,6 +32,8 @@ import {
   OrderStatus,
 } from './enums/order.enums';
 import { OrderImportService } from './order-import.service';
+import { OrderProcessingService } from './order-processing.service';
+import { InventoryService } from '../inventory/inventory.service';
 import { OrderStatusTransitionService } from './order-status-transition.service';
 
 @Injectable()
@@ -59,6 +61,8 @@ export class OrdersService {
     private db: DataSource,
     private transitions: OrderStatusTransitionService,
     private importer: OrderImportService,
+    private processing: OrderProcessingService,
+    private inventory: InventoryService,
   ) {}
   async list(companyId: string, q: ListOrdersDto) {
     const qb = this.orders
@@ -91,6 +95,13 @@ export class OrdersService {
     if (q.paymentStatus) qb.andWhere('o.payment_status=:paymentStatus', q);
     if (q.shippingStatus) qb.andWhere('o.shipping_status=:shippingStatus', q);
     if (q.fiscalStatus) qb.andWhere('o.fiscal_status=:fiscalStatus', q);
+    if (q.processingStatus)
+      qb.andWhere('o.processing_status=:processingStatus', q);
+    if (q.withoutProductLink)
+      qb.andWhere(`o.processing_status='PENDING_PRODUCT_LINK'`);
+    if (q.withoutStock) qb.andWhere(`o.processing_status='PENDING_STOCK'`);
+    if (q.withProcessingError)
+      qb.andWhere(`o.processing_status='PROCESSING_ERROR'`);
     if (q.customerName)
       qb.andWhere('cu.name ILIKE :customerName', {
         customerName: `%${q.customerName}%`,
@@ -130,6 +141,7 @@ export class OrdersService {
           'o.payment_status AS "paymentStatus"',
           'o.shipping_status AS "shippingStatus"',
           'o.fiscal_status AS "fiscalStatus"',
+          'o.processing_status AS "processingStatus"',
           'o.purchased_at AS "purchasedAt"',
           'o.updated_at AS "updatedAt"',
           `(SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id=o.id) AS "itemsCount"`,
@@ -231,7 +243,15 @@ export class OrdersService {
             complement: null,
             reference: null,
           })),
-      items,
+      items: await Promise.all(
+        items.map(async (item) => ({
+          ...item,
+          inventory: item.productId
+            ? await this.inventory.getBalance(companyId, item.productId)
+            : null,
+          reserved: Boolean(item.inventoryReservationId),
+        })),
+      ),
       payments,
       shipments,
       fiscal: fiscal
@@ -247,6 +267,8 @@ export class OrdersService {
     userId: string,
     d: CancelOrderDto,
   ) {
+    const items = await this.items.findBy({ companyId, orderId: id });
+    await this.processing.cancelReservations(companyId, items);
     return this.db.transaction(async (m) => {
       const repo = m.getRepository(Order),
         o = await repo

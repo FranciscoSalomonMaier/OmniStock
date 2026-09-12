@@ -18,6 +18,8 @@ import {
   OrderIssueStatus,
   OrderSource,
   OrderStatus,
+  OrderProcessingStatus,
+  BillingOutboxStatus,
   PaymentMethod,
   PaymentStatus,
   ShippingStatus,
@@ -58,6 +60,12 @@ export class Order {
   })
   externalOrderNumber: string | null;
   @Column({ type: 'enum', enum: OrderStatus }) status: OrderStatus;
+  @Column({
+    name: 'processing_status',
+    type: 'enum',
+    enum: OrderProcessingStatus,
+  })
+  processingStatus: OrderProcessingStatus;
   @Column({ name: 'payment_status', type: 'enum', enum: PaymentStatus })
   paymentStatus: PaymentStatus;
   @Column({ name: 'shipping_status', type: 'enum', enum: ShippingStatus })
@@ -145,6 +153,8 @@ export class Order {
   externalUpdatedAt: Date | null;
   @Column({ name: 'imported_at', type: 'timestamptz', nullable: true })
   importedAt: Date | null;
+  @Column({ name: 'billing_queued_at', type: 'timestamptz', nullable: true })
+  billingQueuedAt: Date | null;
   @Column({ name: 'created_by_user_id', type: 'uuid', nullable: true })
   createdByUserId: string | null;
   @Column({ name: 'updated_by_user_id', type: 'uuid', nullable: true })
@@ -232,6 +242,8 @@ export class OrderItem {
   productMarketplaceLinkId: string | null;
   @Column({ name: 'marketplace_listing_id', type: 'uuid', nullable: true })
   marketplaceListingId: string | null;
+  @Column({ name: 'inventory_reservation_id', type: 'uuid', nullable: true })
+  inventoryReservationId: string | null;
   @Column({
     name: 'external_item_id',
     type: 'varchar',
@@ -596,4 +608,25 @@ export class OrderStatusHistory {
   @Column({ name: 'occurred_at', type: 'timestamptz' }) occurredAt: Date;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
+}
+
+@Entity('order_billing_outbox')
+@Index(['companyId', 'orderId'], { unique: true })
+export class OrderBillingOutbox {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Column({ name: 'company_id', type: 'uuid' }) companyId: string;
+  @Column({ name: 'order_id', type: 'uuid' }) orderId: string;
+  @Column({ name: 'correlation_id', type: 'uuid' }) correlationId: string;
+  @Column({ type: 'enum', enum: BillingOutboxStatus })
+  status: BillingOutboxStatus;
+  @Column({ type: 'jsonb' }) payload: Record<string, unknown>;
+  @Column({ type: 'integer', default: 0 }) attempts: number;
+  @Column({ name: 'published_at', type: 'timestamptz', nullable: true })
+  publishedAt: Date | null;
+  @Column({ name: 'last_error', type: 'varchar', length: 500, nullable: true })
+  lastError: string | null;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt: Date;
 }

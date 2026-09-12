@@ -9,6 +9,8 @@ import type {
   ExchangeAuthorizationCodeInput,
   ImportOrdersInput,
   ImportOrdersResult,
+  GetOrderInput,
+  ExternalOrder,
   ImportProductsInput,
   ImportProductsResult,
   MarketplaceCapabilities,
@@ -37,6 +39,7 @@ export interface MarketplaceConnector {
   ): Promise<ConnectionValidationResult>;
   importProducts(input: ImportProductsInput): Promise<ImportProductsResult>;
   importOrders(input: ImportOrdersInput): Promise<ImportOrdersResult>;
+  getOrder(input: GetOrderInput): Promise<ExternalOrder>;
   updateStock(input: UpdateStockInput): Promise<UpdateStockResult>;
   updatePrice(input: UpdatePriceInput): Promise<UpdatePriceResult>;
   sendInvoice(input: SendInvoiceInput): Promise<SendInvoiceResult>;

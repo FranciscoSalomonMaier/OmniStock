@@ -16,6 +16,7 @@ export interface ChannelConnection {
   channel: SalesChannel;
   displayName: string;
   status: string;
+  externalAccountId: string | null;
   externalAccountName: string | null;
   lastSyncAt: string | null;
   lastSuccessfulSyncAt: string | null;

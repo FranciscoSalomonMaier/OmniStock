@@ -60,7 +60,16 @@ export function IntegrationsPage() {
               to={`/integrations/${x.id}`}
               key={x.id}
             >
-              <strong>{x.displayName}</strong>
+              <span>
+                <strong>{x.displayName}</strong>
+                <small className="connection-account">
+                  {x.externalAccountName
+                    ? `Conta: ${x.externalAccountName}${x.externalAccountId ? ` (ID ${x.externalAccountId})` : ""}`
+                    : x.status === "CONNECTED"
+                      ? `Conta conectada${x.externalAccountId ? ` (ID ${x.externalAccountId})` : ""}`
+                      : "Conta ainda não vinculada"}
+                </small>
+              </span>
               <span>
                 {x.channel.name} · {x.status}
               </span>

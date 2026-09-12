@@ -35,6 +35,23 @@ import { SalesChannelCredentialsService } from './sales-channel-credentials.serv
 import { SalesChannelsService } from './sales-channels.service';
 import { TokenEncryptionService } from './token-encryption.service';
 import { OrdersModule } from '../orders/orders.module';
+import { Order } from '../orders/entities/order.entity';
+import {
+  MarketplaceWebhookEvent,
+  MarketplaceOrderSyncState,
+} from '../orders/entities/marketplace-webhook-event.entity';
+import {
+  MARKETPLACE_ORDER_DEAD_LETTER_QUEUE,
+  MARKETPLACE_ORDER_IMPORT_QUEUE,
+  MARKETPLACE_ORDER_RECONCILIATION_QUEUE,
+} from '../marketplace-connectors/orders/marketplace-order.jobs';
+import { MarketplaceOrderQueueService } from '../marketplace-connectors/orders/marketplace-order-queue.service';
+import { MarketplaceOrderProcessor } from '../marketplace-connectors/orders/marketplace-order.processor';
+import {
+  MarketplaceOrderReconciliationProcessor,
+  MarketplaceOrderScheduleService,
+} from '../marketplace-connectors/orders/marketplace-order-reconciliation.processor';
+import { MarketplaceOrderAdminController } from '../marketplace-connectors/orders/marketplace-order-admin.controller';
 
 @Module({
   imports: [
@@ -48,16 +65,25 @@ import { OrdersModule } from '../orders/orders.module';
       MarketplaceOrderImportItem,
       MarketplaceSyncRun,
       MarketplaceNotification,
+      MarketplaceWebhookEvent,
+      MarketplaceOrderSyncState,
+      Order,
     ]),
     CompaniesModule,
     OrdersModule,
     BullModule.registerQueue({ name: MERCADO_LIVRE_QUEUE }),
+    BullModule.registerQueue(
+      { name: MARKETPLACE_ORDER_IMPORT_QUEUE },
+      { name: MARKETPLACE_ORDER_RECONCILIATION_QUEUE },
+      { name: MARKETPLACE_ORDER_DEAD_LETTER_QUEUE },
+    ),
   ],
   controllers: [
     SalesChannelsCatalogController,
     SalesChannelConnectionsController,
     MercadoLivreController,
     MercadoLivreWebhookController,
+    MarketplaceOrderAdminController,
   ],
   providers: [
     SalesChannelsService,
@@ -76,6 +102,10 @@ import { OrdersModule } from '../orders/orders.module';
     ShopeeConnector,
     AmazonConnector,
     MagaluConnector,
+    MarketplaceOrderQueueService,
+    MarketplaceOrderProcessor,
+    MarketplaceOrderReconciliationProcessor,
+    MarketplaceOrderScheduleService,
   ],
   exports: [
     SalesChannelsService,

@@ -82,6 +82,11 @@ export function IntegrationDetailsPage() {
               : data.status}
           </p>
           <p>
+            <strong>Conta externa:</strong>{" "}
+            {data.externalAccountName ?? "Não vinculada"}
+            {data.externalAccountId ? ` (ID ${data.externalAccountId})` : ""}
+          </p>
+          <p>
             <strong>Última tentativa:</strong>{" "}
             {data.lastSyncAt ?? "Nunca executada"}
           </p>

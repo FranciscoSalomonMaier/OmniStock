@@ -28,6 +28,7 @@ import {
   MercadoLivreJobPayload,
 } from './mercado-livre.jobs';
 import { OrderImportService } from '../../orders/order-import.service';
+import { OrderProcessingService } from '../../orders/order-processing.service';
 @Processor(MERCADO_LIVRE_QUEUE, { concurrency: 3 })
 export class MercadoLivreProcessor extends WorkerHost {
   constructor(
@@ -46,6 +47,7 @@ export class MercadoLivreProcessor extends WorkerHost {
     private readonly connector: MercadoLivreConnector,
     private readonly integration: MercadoLivreIntegrationService,
     private readonly orderImporter: OrderImportService,
+    private readonly orderProcessing: OrderProcessingService,
   ) {
     super();
   }
@@ -130,9 +132,22 @@ export class MercadoLivreProcessor extends WorkerHost {
           : 'UNKNOWN_PROVIDER_ERROR';
       run.errorMessage =
         error instanceof MarketplaceConnectorError
-          ? error.message
+          ? `${error.message}${error.providerStatus ? ` (HTTP ${error.providerStatus})` : ''}`
           : 'Falha ao sincronizar com o Mercado Livre.';
-      await this.runs.save(run);
+      const failedConnection = await this.connections.findOneBy({
+        id: job.data.connectionId,
+        companyId: job.data.companyId,
+      });
+      if (failedConnection) {
+        failedConnection.lastSyncAt = new Date();
+        failedConnection.lastErrorAt = new Date();
+        failedConnection.lastErrorCode = run.errorCode;
+        failedConnection.lastErrorMessage = run.errorMessage;
+      }
+      await Promise.all([
+        this.runs.save(run),
+        ...(failedConnection ? [this.connections.save(failedConnection)] : []),
+      ]);
       throw error;
     }
   }
@@ -200,16 +215,19 @@ export class MercadoLivreProcessor extends WorkerHost {
         pageSize: 50,
       });
       for (const order of result.items) {
-        const imported = await this.upsertOrder(
-          context.companyId,
-          context.connectionId,
-          order,
-        );
         const connection = await this.connections.findOneByOrFail({
           id: context.connectionId,
           companyId: context.companyId,
         });
-        await this.orderImporter.importMarketplace(connection, order, imported);
+        const internalOrder = await this.orderImporter.ingestMarketplace(
+          connection,
+          order,
+        );
+        await this.orderProcessing.process(
+          connection.companyId,
+          internalOrder.id,
+          context.correlationId,
+        );
       }
       run.processedCount += result.items.length;
       run.successCount += result.items.length;

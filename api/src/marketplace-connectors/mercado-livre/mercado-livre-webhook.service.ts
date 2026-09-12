@@ -1,121 +1,136 @@
-import { Injectable } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { createHash, randomUUID } from 'crypto';
-import { Queue } from 'bullmq';
+import { createHash } from 'crypto';
 import { Repository } from 'typeorm';
+import {
+  MarketplaceWebhookEvent,
+  MarketplaceWebhookEventStatus,
+} from '../../orders/entities/marketplace-webhook-event.entity';
 import { SalesChannelConnection } from '../../sales-channels/entities/sales-channel-connection.entity';
 import { SalesChannelCode } from '../../sales-channels/enums/sales-channel.enums';
-import {
-  MarketplaceNotification,
-  NotificationStatus,
-} from './entities/marketplace-notification.entity';
-import {
-  MarketplaceSyncRun,
-  SyncRunStatus,
-} from './entities/marketplace-sync-run.entity';
+import { MarketplaceOrderQueueService } from '../orders/marketplace-order-queue.service';
 import { MercadoLivreNotificationDto } from './dto/mercado-livre-notification.dto';
-import {
-  MERCADO_LIVRE_QUEUE,
-  MercadoLivreJobPayload,
-} from './mercado-livre.jobs';
+
 @Injectable()
 export class MercadoLivreWebhookService {
   constructor(
-    @InjectRepository(MarketplaceNotification)
-    private readonly notifications: Repository<MarketplaceNotification>,
-    @InjectRepository(MarketplaceSyncRun)
-    private readonly runs: Repository<MarketplaceSyncRun>,
+    @InjectRepository(MarketplaceWebhookEvent)
+    private events: Repository<MarketplaceWebhookEvent>,
     @InjectRepository(SalesChannelConnection)
-    private readonly connections: Repository<SalesChannelConnection>,
-    @InjectQueue(MERCADO_LIVRE_QUEUE)
-    private readonly queue: Queue<MercadoLivreJobPayload>,
+    private connections: Repository<SalesChannelConnection>,
+    private queue: MarketplaceOrderQueueService,
+    private config: ConfigService,
   ) {}
   async receive(dto: MercadoLivreNotificationDto) {
-    const hash = createHash('sha256')
-      .update(
-        [
-          dto._id ?? '',
-          dto.resource,
-          dto.topic,
-          String(dto.user_id),
-          String(dto.application_id),
-          dto.sent ?? '',
-        ].join('|'),
-      )
-      .digest('hex');
-    if (await this.notifications.exists({ where: { payloadHash: hash } }))
-      return { received: true, duplicate: true };
-    const connection = await this.connections
-      .createQueryBuilder('connection')
-      .innerJoinAndSelect('connection.channel', 'channel')
-      .where('connection.externalAccountId = :user', {
-        user: String(dto.user_id),
-      })
-      .andWhere('channel.code = :code', {
-        code: SalesChannelCode.MERCADO_LIVRE,
-      })
-      .getOne();
-    const notification = await this.notifications.save(
-      this.notifications.create({
-        payloadHash: hash,
-        applicationId: String(dto.application_id),
-        externalUserId: String(dto.user_id),
-        topic: dto.topic,
+    if (
+      String(dto.application_id) !==
+      this.config.getOrThrow<string>('MERCADO_LIVRE_CLIENT_ID')
+    )
+      throw new BadRequestException('Notificação inválida.');
+    const orderId = /^\/orders\/(\d+)$/.exec(dto.resource)?.[1] ?? null;
+    if (dto.topic !== 'orders_v2' || !orderId)
+      return { received: true, ignored: true };
+    const identity = {
+        _id: dto._id ?? null,
         resource: dto.resource,
+        topic: dto.topic,
+        user_id: String(dto.user_id),
+        application_id: String(dto.application_id),
+      },
+      relevant = {
+        ...identity,
         attempts: dto.attempts ?? null,
-        sentAt: dto.sent ? new Date(dto.sent) : null,
-        receivedAt: new Date(),
-        status: connection
-          ? NotificationStatus.QUEUED
-          : NotificationStatus.IGNORED,
+        sent: dto.sent ?? null,
+      },
+      payloadHash = createHash('sha256')
+        .update(JSON.stringify(identity))
+        .digest('hex');
+    let event = await this.events.findOne({
+      where: [
+        { marketplace: SalesChannelCode.MERCADO_LIVRE, payloadHash },
+        ...(dto._id
+          ? [
+              {
+                marketplace: SalesChannelCode.MERCADO_LIVRE,
+                externalEventId: dto._id,
+              },
+            ]
+          : []),
+      ],
+    });
+    if (
+      event &&
+      [
+        MarketplaceWebhookEventStatus.PROCESSED,
+        MarketplaceWebhookEventStatus.QUEUED,
+        MarketplaceWebhookEventStatus.PROCESSING,
+      ].includes(event.status)
+    )
+      return { received: true, duplicate: true, eventId: event.id };
+    const connection = await this.connections
+      .createQueryBuilder('c')
+      .innerJoinAndSelect('c.channel', 'channel')
+      .where('c.externalAccountId=:user', { user: String(dto.user_id) })
+      .andWhere('channel.code=:code', { code: SalesChannelCode.MERCADO_LIVRE })
+      .getOne();
+    if (!event)
+      event = this.events.create({
         companyId: connection?.companyId ?? null,
-        connectionId: connection?.id ?? null,
+        marketplaceAccountId: connection?.id ?? null,
+        marketplace: SalesChannelCode.MERCADO_LIVRE,
+        externalEventId: dto._id ?? null,
+        eventType: dto.topic,
+        resource: dto.resource,
+        externalOrderId: orderId,
+        payload: relevant,
+        payloadHash,
+        status: connection
+          ? MarketplaceWebhookEventStatus.RECEIVED
+          : MarketplaceWebhookEventStatus.IGNORED,
+        attempts: 0,
+        receivedAt: new Date(),
+        queuedAt: null,
         processedAt: connection ? null : new Date(),
-        errorCode: connection ? null : 'CONNECTION_NOT_FOUND',
-        errorMessage: connection ? null : 'Notificação de conta não conectada.',
-      }),
-    );
-    if (connection) {
-      const correlationId = randomUUID(),
-        run = await this.runs.save(
-          this.runs.create({
-            companyId: connection.companyId,
-            connectionId: connection.id,
-            operation: 'PROCESS_NOTIFICATION',
-            status: SyncRunStatus.PENDING,
-            correlationId,
-            startedAt: null,
-            finishedAt: null,
-            processedCount: 0,
-            successCount: 0,
-            failureCount: 0,
-            cursor: null,
-            errorCode: null,
-            errorMessage: null,
-          }),
-        );
-      await this.queue.add(
-        'PROCESS_NOTIFICATION',
-        {
-          companyId: connection.companyId,
-          connectionId: connection.id,
-          operation: 'PROCESS_NOTIFICATION',
-          correlationId,
-          syncRunId: run.id,
-          notificationId: notification.id,
-          cursor: null,
-          attemptNumber: 1,
-        },
-        {
-          jobId: `notification-${notification.id}`,
-          attempts: 4,
-          backoff: { type: 'exponential', delay: 1000 },
-        },
-      );
-      notification.status = NotificationStatus.QUEUED;
-      await this.notifications.save(notification);
+        failedAt: null,
+        lastError: connection ? null : 'Conta de marketplace não encontrada.',
+      });
+    try {
+      event = await this.events.save(event);
+    } catch (error) {
+      const duplicate = await this.events.findOneBy({
+        marketplace: SalesChannelCode.MERCADO_LIVRE,
+        payloadHash,
+      });
+      if (!duplicate) throw error;
+      event = duplicate;
     }
-    return { received: true, duplicate: false };
+    if (!connection)
+      return { received: true, ignored: true, eventId: event.id };
+    try {
+      const result = await this.queue.enqueueOrder(
+        connection.companyId,
+        connection.id,
+        orderId,
+        'WEBHOOK',
+        { webhookEventId: event.id },
+      );
+      event.status = MarketplaceWebhookEventStatus.QUEUED;
+      event.queuedAt = new Date();
+      event.lastError = null;
+      await this.events.save(event);
+      return {
+        received: true,
+        duplicate: false,
+        eventId: event.id,
+        jobId: result.jobId,
+      };
+    } catch (error) {
+      event.status = MarketplaceWebhookEventStatus.FAILED;
+      event.failedAt = new Date();
+      event.lastError = 'Não foi possível enfileirar o evento.';
+      await this.events.save(event);
+      throw error;
+    }
   }
 }

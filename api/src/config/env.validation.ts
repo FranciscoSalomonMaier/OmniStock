@@ -70,6 +70,11 @@ export const envValidationSchema = Joi.object({
     .integer()
     .positive()
     .default(10000),
+  ORDER_SYNC_ENABLED: Joi.boolean().default(true),
+  ORDER_SYNC_CRON: Joi.string().default('*/5 * * * *'),
+  ORDER_SYNC_OVERLAP_MINUTES: Joi.number().integer().min(1).default(10),
+  ORDER_IMPORT_MAX_ATTEMPTS: Joi.number().integer().min(1).max(20).default(5),
+  ORDER_IMPORT_CONCURRENCY: Joi.number().integer().min(1).max(20).default(5),
   SHOPEE_CONNECTOR_ENABLED: Joi.boolean().default(false),
   AMAZON_CONNECTOR_ENABLED: Joi.boolean().default(false),
   MAGALU_CONNECTOR_ENABLED: Joi.boolean().default(false),

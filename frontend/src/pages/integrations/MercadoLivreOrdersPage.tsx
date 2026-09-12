@@ -1,15 +1,24 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { integrationService } from "../../services/integration.service";
-import type { MarketplaceOrder } from "../../types/integration";
+import type {
+  MarketplaceOrder,
+  MarketplaceSyncRun,
+} from "../../types/integration";
 export function MercadoLivreOrdersPage() {
   const { connectionId = "" } = useParams(),
     [items, setItems] = useState<MarketplaceOrder[]>([]),
+    [runs, setRuns] = useState<MarketplaceSyncRun[]>([]),
     [error, setError] = useState("");
   useEffect(() => {
-    integrationService
-      .orders(connectionId)
-      .then(setItems)
+    Promise.all([
+      integrationService.orders(connectionId),
+      integrationService.runs(connectionId),
+    ])
+      .then(([orders, syncRuns]) => {
+        setItems(orders);
+        setRuns(syncRuns.filter((run) => run.operation === "IMPORT_ORDERS"));
+      })
       .catch((e) =>
         setError(e instanceof Error ? e.message : "Falha ao carregar"),
       );
@@ -22,6 +31,31 @@ export function MercadoLivreOrdersPage() {
         Pedidos importados do canal — ainda não processados pelo fluxo interno.
       </p>
       {error && <p className="form-error">{error}</p>}
+      <h2>Últimas importações</h2>
+      {runs.length ? (
+        <div className="cards">
+          {runs.slice(0, 5).map((run) => (
+            <section className="company-card" key={run.id}>
+              <span>
+                <strong>{run.status}</strong>
+                <small className="connection-account">
+                  Processados: {run.processedCount} · Sucessos: {run.successCount}
+                  {run.failureCount ? ` · Falhas: ${run.failureCount}` : ""}
+                </small>
+                {run.errorMessage && (
+                  <small className="form-error">
+                    {run.errorCode}: {run.errorMessage}
+                  </small>
+                )}
+              </span>
+              <time>{new Date(run.createdAt).toLocaleString("pt-BR")}</time>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <p className="muted">Nenhuma tentativa de importação registrada.</p>
+      )}
+      <h2>Pedidos encontrados</h2>
       <div className="table-wrap">
         <table>
           <thead>
@@ -53,6 +87,12 @@ export function MercadoLivreOrdersPage() {
             ))}
           </tbody>
         </table>
+        {!items.length && (
+          <p className="muted">
+            Nenhum pedido foi importado. Consulte a execução acima para saber
+            se a conta não possui vendas ou se o provedor recusou a consulta.
+          </p>
+        )}
       </div>
     </main>
   );

@@ -241,6 +241,141 @@ export class InventoryService {
       return { movement, reservation };
     });
   }
+  async reserveOrderItems(
+    companyId: string,
+    items: Array<{ orderItemId: string; productId: string; quantity: string }>,
+  ) {
+    return this.db.transaction(async (m) => {
+      const results: InventoryReservation[] = [];
+      for (const item of [...items].sort((a, b) =>
+        a.productId.localeCompare(b.productId),
+      )) {
+        await this.product(m, companyId, item.productId);
+        await m
+          .createQueryBuilder()
+          .insert()
+          .into(InventoryBalance)
+          .values({
+            companyId,
+            productId: item.productId,
+            currentQuantity: '0',
+            reservedQuantity: '0',
+          })
+          .orIgnore()
+          .execute();
+        const balance = await m
+          .getRepository(InventoryBalance)
+          .createQueryBuilder('balance')
+          .setLock('pessimistic_write')
+          .where(
+            'balance.company_id=:companyId AND balance.product_id=:productId',
+            {
+              companyId,
+              productId: item.productId,
+            },
+          )
+          .getOneOrFail();
+        const referenceId = `ORDER_ITEM:${item.orderItemId}`;
+        let reservation = await m.findOneBy(InventoryReservation, {
+          companyId,
+          productId: item.productId,
+          referenceType: InventoryReferenceType.ORDER,
+          referenceId,
+        });
+        const wanted = units(item.quantity),
+          old =
+            reservation?.status === InventoryReservationStatus.ACTIVE
+              ? units(reservation.quantity)
+              : 0n,
+          delta = wanted - old,
+          current = units(balance.currentQuantity),
+          reserved = units(balance.reservedQuantity);
+        if (delta > 0n && delta > current - reserved)
+          throw new ConflictException(
+            `Estoque insuficiente para o item ${item.orderItemId}.`,
+          );
+        if (delta !== 0n)
+          await this.persist(
+            m,
+            balance,
+            null,
+            delta > 0n
+              ? InventoryMovementType.RESERVATION
+              : InventoryMovementType.RESERVATION_CANCELED,
+            delta > 0n ? delta : -delta,
+            current,
+            reserved + delta,
+            delta > 0n
+              ? 'Reserva automática de pedido'
+              : 'Ajuste de reserva do pedido',
+            null,
+            null,
+            InventoryReferenceType.ORDER,
+            referenceId,
+          );
+        if (!reservation)
+          reservation = m.create(InventoryReservation, {
+            companyId,
+            productId: item.productId,
+            inventoryBalanceId: balance.id,
+            referenceType: InventoryReferenceType.ORDER,
+            referenceId,
+            reason: 'Reserva automática de pedido',
+            expiresAt: null,
+            createdByUserId: null,
+            completedAt: null,
+            canceledAt: null,
+          });
+        reservation.quantity = decimal(wanted);
+        reservation.status = InventoryReservationStatus.ACTIVE;
+        reservation.canceledAt = null;
+        reservation = await m.save(reservation);
+        results.push(reservation);
+      }
+      return results;
+    });
+  }
+  async cancelOrderReservations(companyId: string, reservationIds: string[]) {
+    return this.db.transaction(async (m) => {
+      for (const id of [...new Set(reservationIds)].sort()) {
+        const reservation = await m.findOneBy(InventoryReservation, {
+          id,
+          companyId,
+        });
+        if (
+          !reservation ||
+          reservation.status !== InventoryReservationStatus.ACTIVE
+        )
+          continue;
+        const balance = await m
+          .getRepository(InventoryBalance)
+          .createQueryBuilder('balance')
+          .setLock('pessimistic_write')
+          .where('balance.id=:id AND balance.company_id=:companyId', {
+            id: reservation.inventoryBalanceId,
+            companyId,
+          })
+          .getOneOrFail();
+        await this.persist(
+          m,
+          balance,
+          null,
+          InventoryMovementType.RESERVATION_CANCELED,
+          units(reservation.quantity),
+          units(balance.currentQuantity),
+          units(balance.reservedQuantity) - units(reservation.quantity),
+          'Cancelamento de reserva do pedido',
+          null,
+          null,
+          InventoryReferenceType.ORDER,
+          reservation.referenceId,
+        );
+        reservation.status = InventoryReservationStatus.CANCELED;
+        reservation.canceledAt = new Date();
+        await m.save(reservation);
+      }
+    });
+  }
   cancelReservation(c: string, u: string, id: string, k: string) {
     return this.processReservation(c, u, id, k, false);
   }
@@ -568,14 +703,14 @@ export class InventoryService {
   private async persist(
     m: EntityManager,
     b: InventoryBalance,
-    u: string,
+    u: string | null,
     type: InventoryMovementType,
     qty: bigint,
     current: bigint,
     reserved: bigint,
     reason: string,
     notes: string | undefined | null,
-    key: string,
+    key: string | null,
     referenceType: InventoryReferenceType | null,
     referenceId: string | null,
     reversal: string | null = null,

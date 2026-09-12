@@ -85,14 +85,6 @@ export class OrdersController {
   ) {
     return this.s.cancel(m.companyId, id, u.id, d);
   }
-  @Post(':id/reprocess')
-  @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER, CompanyRole.SUPPORT)
-  reprocess(
-    @CurrentMembership() m: CompanyMember,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.s.reprocess(m.companyId, id);
-  }
   @Post(':id/issues/:issueId/resolve')
   @CompanyRoles(
     CompanyRole.ADMIN,
