@@ -18,6 +18,7 @@ import { SalesChannelsModule } from './sales-channels/sales-channels.module';
 import { BullModule } from '@nestjs/bullmq';
 import { ProductMarketplaceLinksModule } from './product-marketplace-links/product-marketplace-links.module';
 import { OrdersModule } from './orders/orders.module';
+import { MarketplaceStockModule } from './marketplace-connectors/stock/marketplace-stock.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { OrdersModule } from './orders/orders.module';
     InventoryModule,
     OrdersModule,
     SalesChannelsModule,
+    MarketplaceStockModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

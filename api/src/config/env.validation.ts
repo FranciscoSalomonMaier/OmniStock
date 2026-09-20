@@ -75,6 +75,15 @@ export const envValidationSchema = Joi.object({
   ORDER_SYNC_OVERLAP_MINUTES: Joi.number().integer().min(1).default(10),
   ORDER_IMPORT_MAX_ATTEMPTS: Joi.number().integer().min(1).max(20).default(5),
   ORDER_IMPORT_CONCURRENCY: Joi.number().integer().min(1).max(20).default(5),
+  STOCK_SYNC_ENABLED: Joi.boolean().default(true),
+  STOCK_SYNC_CONCURRENCY: Joi.number().integer().min(1).max(50).default(5),
+  STOCK_SYNC_MAX_ATTEMPTS: Joi.number().integer().min(1).max(20).default(5),
+  STOCK_SYNC_BACKOFF_MS: Joi.number().integer().min(100).default(5000),
+  STOCK_SYNC_DEBOUNCE_MS: Joi.number().integer().min(0).default(2000),
+  STOCK_SYNC_REQUEST_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .default(10000),
   SHOPEE_CONNECTOR_ENABLED: Joi.boolean().default(false),
   AMAZON_CONNECTOR_ENABLED: Joi.boolean().default(false),
   MAGALU_CONNECTOR_ENABLED: Joi.boolean().default(false),

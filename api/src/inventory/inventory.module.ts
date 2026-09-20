@@ -6,12 +6,14 @@ import { InventoryMovement } from './entities/inventory-movement.entity';
 import { InventoryReservation } from './entities/inventory-reservation.entity';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
+import { InventoryOutboxEvent } from './entities/inventory-outbox-event.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       InventoryBalance,
       InventoryMovement,
       InventoryReservation,
+      InventoryOutboxEvent,
     ]),
     CompaniesModule,
   ],

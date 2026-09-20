@@ -113,6 +113,7 @@ import { MarketplaceOrderAdminController } from '../marketplace-connectors/order
     MarketplaceCredentialProvider,
     MarketplaceIntegrationService,
     MarketplaceConnectorRegistry,
+    MercadoLivreIntegrationService,
   ],
 })
 export class SalesChannelsModule {}

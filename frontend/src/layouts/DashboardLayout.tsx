@@ -8,7 +8,7 @@ const menu = [
   ['Início', [['⌂', 'Dashboard', '/dashboard', false]]],
   ['Empresas', [['▣', 'Minhas empresas', '/companies', false], ['＋', 'Cadastrar empresa', '/companies/new', false], ['⚙', 'Configurações', '/settings/company', true], ['♟', 'Usuários', '/settings/company/members', true]]],
   ['Produtos', [['▤', 'Listar produtos', '/products', true], ['＋', 'Cadastrar produto', '/products/new', true], ['◫', 'Categorias', '/product-categories', true]]],
-  ['Estoque', [['▦', 'Visão geral', '/inventory', true], ['↕', 'Movimentações', '/inventory/movements', true], ['＋', 'Nova entrada', '/inventory/entries/new', true], ['−', 'Nova saída', '/inventory/exits/new', true], ['≋', 'Ajustar estoque', '/inventory/adjustments/new', true], ['◇', 'Reservas', '/inventory/reservations', true]]],
+  ['Estoque', [['▦', 'Visão geral', '/inventory', true], ['↕', 'Movimentações', '/inventory/movements', true], ['⇄', 'Sincronizações', '/inventory/stock-sync', true], ['＋', 'Nova entrada', '/inventory/entries/new', true], ['−', 'Nova saída', '/inventory/exits/new', true], ['≋', 'Ajustar estoque', '/inventory/adjustments/new', true], ['◇', 'Reservas', '/inventory/reservations', true]]],
   ['Pedidos', [['#', 'Todos os pedidos', '/orders', true], ['!', 'Pendências', '/orders/issues', true]]],
   ['Minha conta', [['●', 'Perfil', '/profile', false], ['⌁', 'Alterar senha', '/profile/password', false]]],
 ] as const

@@ -78,3 +78,48 @@ npm run migration:revert:prod
 - Redis: localhost:6379
 
 O health check consulta o PostgreSQL com `SELECT 1`. Redis está provisionado, mas ainda não possui cliente na API e não integra esse endpoint.
+
+## Sincronização de estoque (etapa 13)
+
+O saldo disponível do OmniStock (`saldo atual - reservado`) é a fonte da
+verdade. Toda alteração efetiva desse saldo grava, na mesma transação, um evento
+na outbox. Um publicador no Redis/BullMQ distribui o evento para cada anúncio
+ativo vinculado ao produto e cada vínculo é processado de forma independente.
+
+O processamento usa a versão do saldo e a chave única
+`vínculo + versão do estoque` para evitar duplicidade. Antes da chamada externa,
+o worker lê novamente o saldo central; eventos antigos são marcados como
+`SUPERSEDED`. Falhas transitórias usam retentativa com backoff exponencial e
+falhas definitivas permanecem no histórico como `FAILED`.
+
+Variáveis de ambiente:
+
+```ini
+STOCK_SYNC_ENABLED=true
+STOCK_SYNC_CONCURRENCY=5
+STOCK_SYNC_MAX_ATTEMPTS=5
+STOCK_SYNC_BACKOFF_MS=5000
+STOCK_SYNC_DEBOUNCE_MS=2000
+STOCK_SYNC_REQUEST_TIMEOUT_MS=15000
+```
+
+Endpoints administrativos (todos exigem autenticação e `X-Company-Id`):
+
+- `GET /api/marketplace-stock-syncs`
+- `POST /api/inventory/products/:productId/sync-stock`
+- `POST /api/marketplace-stock-syncs/:id/retry`
+- `GET /api/marketplace-stock-divergences`
+- `POST /api/marketplace-stock-divergences/:id/resolve`
+- `POST /api/marketplace-accounts/:accountId/reconcile-stock`
+
+O conector do Mercado Livre envia `available_quantity` para o item ou para a
+variação vinculada. Contas que usam estoque multiorigem/User Products exigem os
+endpoints específicos de depósito do Mercado Livre e ainda não são atendidas por
+este fluxo. Amazon, Shopee e Magalu continuam com contratos preparados, mas sem
+chamadas reais de estoque até seus conectores serem implementados.
+
+Documentação oficial consultada:
+
+- https://developers.mercadolivre.com.br/pt_br/produto-sincronizacao-de-publicacoes
+- https://developers.mercadolivre.com.br/pt_br/variacoes
+- https://developers.mercadolivre.com.br/pt_br/publicacao-de-produtos/estoque-distribuido

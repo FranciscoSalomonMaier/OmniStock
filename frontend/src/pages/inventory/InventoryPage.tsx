@@ -95,6 +95,15 @@ export function InventoryPage() {
     setFilters((x) => ({ ...x, [key]: value }));
     setMeta((x) => ({ ...x, page: 1 }));
   }
+  async function syncNow(productId: string) {
+    if (!window.confirm("Sincronizar o saldo disponível atual em todos os anúncios vinculados?")) return;
+    try {
+      await inventoryService.syncStock(productId);
+      setReload((x) => x + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível enfileirar a sincronização.");
+    }
+  }
   const visibleData=loadedCompanyId===activeCompany?.id?data:[];const visibleSummary=loadedCompanyId===activeCompany?.id?summary:initialSummary;const visibleLoading=loading||loadedCompanyId!==activeCompany?.id;
   return (
     <main className="page inventory-page">
@@ -274,6 +283,8 @@ export function InventoryPage() {
                   Estoque mínimo
                 </th>
                 <th scope="col">Situação</th>
+                <th scope="col">Sincronização</th>
+                <th scope="col">Canais</th>
                 <th scope="col">Atualização</th>
                 <th scope="col">Ações</th>
               </tr>
@@ -300,6 +311,8 @@ export function InventoryPage() {
                         {label}
                       </span>
                     </td>
+                    <td>{x.syncStatus}{x.errorChannels ? ` (${x.errorChannels} erro)` : ""}</td>
+                    <td>{x.linkedChannels}</td>
                     <td>{new Date(x.updatedAt).toLocaleString("pt-BR")}</td>
                     <td>
                       <details className="row-actions">
@@ -309,6 +322,9 @@ export function InventoryPage() {
                         </Link>
                         {canWrite && (
                           <>
+                            <button type="button" onClick={() => void syncNow(x.product.id)}>
+                              Sincronizar agora
+                            </button>
                             <Link
                               to={`/inventory/entries/new?productId=${x.product.id}`}
                             >

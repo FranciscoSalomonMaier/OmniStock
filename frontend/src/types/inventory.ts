@@ -15,7 +15,12 @@ export interface InventoryBalance {
   availableQuantity: string;
   isBelowMinimumStock: boolean;
   updatedAt: string;
+  syncStatus: string;
+  linkedChannels: number;
+  errorChannels: number;
 }
+export interface StockSync {id:string;productId:string;marketplace:string;externalProductId:string;externalVariationId:string|null;inventoryVersion:number;requestedQuantity:number;sentQuantity:number|null;externalQuantity:number|null;status:string;attemptCount:number;lastErrorCode:string|null;lastErrorMessage:string|null;requestedAt:string;synchronizedAt:string|null;product?:{sku:string;name:string};}
+export interface StockDivergence {id:string;productId:string;productMarketplaceLinkId:string;marketplaceAccountId:string;expectedQuantity:number;externalQuantity:number|null;status:string;detectedAt:string;notes:string|null;}
 export interface Page<T> {
   data: T[];
   meta: { page: number; limit: number; total: number; totalPages: number };

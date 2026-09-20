@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { createHash } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import {
   DataSource,
   EntityManager,
@@ -24,6 +24,10 @@ import {
 import { InventoryBalance } from './entities/inventory-balance.entity';
 import { InventoryMovement } from './entities/inventory-movement.entity';
 import { InventoryReservation } from './entities/inventory-reservation.entity';
+import {
+  InventoryOutboxEvent,
+  OutboxEventStatus,
+} from './entities/inventory-outbox-event.entity';
 import {
   InventoryMovementType,
   InventoryReferenceType,
@@ -110,8 +114,42 @@ export class InventoryService {
       .skip((q.page - 1) * q.limit)
       .take(q.limit);
     const [entities, total] = await qb.getManyAndCount();
+    const syncRows: Array<{
+      productId: string;
+      linkedChannels: string;
+      errorChannels: string;
+      syncStatus: string | null;
+    }> = entities.length
+      ? await this.db.query(
+          `SELECT p.id AS "productId",
+             COUNT(DISTINCT l.id) FILTER(WHERE l.status='ACTIVE')::text AS "linkedChannels",
+             COUNT(DISTINCT l.id) FILTER(WHERE l.status='ACTIVE' AND latest_sync.status='FAILED')::text AS "errorChannels",
+             (SELECT ms.status::text FROM marketplace_stock_syncs ms WHERE ms.company_id=p.company_id AND ms.product_id=p.id ORDER BY ms.created_at DESC LIMIT 1) AS "syncStatus"
+           FROM products p
+           LEFT JOIN product_marketplace_links l ON l.product_id=p.id AND l.company_id=p.company_id
+           LEFT JOIN LATERAL (
+             SELECT ms.status::text AS status
+             FROM marketplace_stock_syncs ms
+             WHERE ms.product_marketplace_link_id=l.id AND ms.company_id=p.company_id
+             ORDER BY ms.created_at DESC
+             LIMIT 1
+           ) latest_sync ON true
+           WHERE p.company_id=$1 AND p.id=ANY($2::uuid[]) GROUP BY p.id`,
+          [companyId, entities.map((x) => x.productId)],
+        )
+      : [];
+    const syncByProduct = new Map(syncRows.map((x) => [x.productId, x]));
     return {
-      data: entities.map((b) => this.view(b, b.product)),
+      data: entities.map((b) => ({
+        ...this.view(b, b.product),
+        syncStatus: syncByProduct.get(b.productId)?.syncStatus ?? 'NOT_SYNCED',
+        linkedChannels: Number(
+          syncByProduct.get(b.productId)?.linkedChannels ?? 0,
+        ),
+        errorChannels: Number(
+          syncByProduct.get(b.productId)?.errorChannels ?? 0,
+        ),
+      })),
       meta: {
         page: q.page,
         limit: q.limit,
@@ -722,7 +760,7 @@ export class InventoryService {
     b.currentQuantity = decimal(current);
     b.reservedQuantity = decimal(reserved);
     await m.save(b);
-    return m.save(
+    const movement = await m.save(
       InventoryMovement,
       m.create(InventoryMovement, {
         companyId: b.companyId,
@@ -747,6 +785,47 @@ export class InventoryService {
         occurredAt: new Date(),
       }),
     );
+    if (cb - rb !== current - reserved) {
+      const source =
+        referenceType === InventoryReferenceType.ORDER
+          ? type === InventoryMovementType.RESERVATION_CANCELED
+            ? 'ORDER_CANCELLATION'
+            : 'ORDER_IMPORT'
+          : u
+            ? 'MANUAL'
+            : 'SYSTEM';
+      await m.save(
+        InventoryOutboxEvent,
+        m.create(InventoryOutboxEvent, {
+          companyId: b.companyId,
+          aggregateType: 'INVENTORY',
+          aggregateId: b.productId,
+          eventType: 'InventoryAvailabilityChanged',
+          payload: {
+            companyId: b.companyId,
+            productId: b.productId,
+            previousOnHand: Number(decimal(cb)),
+            currentOnHand: Number(decimal(current)),
+            previousReserved: Number(decimal(rb)),
+            currentReserved: Number(decimal(reserved)),
+            previousAvailable: Number(decimal(cb - rb)),
+            currentAvailable: Number(decimal(current - reserved)),
+            inventoryVersion: b.version,
+            movementId: movement.id,
+            movementType: type,
+            source,
+            correlationId: key ?? randomUUID(),
+            occurredAt: movement.occurredAt.toISOString(),
+          },
+          status: OutboxEventStatus.PENDING,
+          attempts: 0,
+          availableAt: new Date(),
+          processedAt: null,
+          lastError: null,
+        }),
+      );
+    }
+    return movement;
   }
   private async product(m: EntityManager, c: string, p: string) {
     const x = await m.findOneBy(Product, { id: p, companyId: c });

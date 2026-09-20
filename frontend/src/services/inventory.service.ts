@@ -4,6 +4,8 @@ import type {
   Movement,
   Page,
   Reservation,
+  StockSync,
+  StockDivergence,
 } from "../types/inventory";
 const key = () => crypto.randomUUID();
 export interface InventorySummary {
@@ -43,4 +45,9 @@ export const inventoryService = {
       method: "POST",
       headers: { "Idempotency-Key": key() },
     }),
+  syncStock: (productId: string) => apiRequest<{eventId:string;status:string}>(`/inventory/products/${productId}/sync-stock`,{method:"POST"}),
+  stockSyncs: (status = "") => apiRequest<StockSync[]>(`/marketplace-stock-syncs${status?`?status=${status}`:""}`),
+  retryStockSync: (id:string) => apiRequest(`/marketplace-stock-syncs/${id}/retry`,{method:"POST"}),
+  divergences: () => apiRequest<StockDivergence[]>("/marketplace-stock-divergences"),
+  resolveDivergence: (id:string,notes:string) => apiRequest(`/marketplace-stock-divergences/${id}/resolve`,{method:"POST",body:JSON.stringify({notes})}),
 };

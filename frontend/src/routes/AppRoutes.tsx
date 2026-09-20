@@ -20,6 +20,7 @@ import { InventoryOperationPage } from "../pages/inventory/InventoryOperationPag
 import { InventoryProductPage } from "../pages/inventory/InventoryProductPage";
 import { MovementsPage } from "../pages/inventory/MovementsPage";
 import { ReservationsPage } from "../pages/inventory/ReservationsPage";
+import { StockSyncPage } from "../pages/inventory/StockSyncPage";
 import { CategoriesPage } from "../pages/products/CategoriesPage";
 import { ProductDetailsPage } from "../pages/products/ProductDetailsPage";
 import { ProductFormPage } from "../pages/products/ProductFormPage";
@@ -71,6 +72,7 @@ export function AppRoutes() {
             <Route path="/product-categories" element={<CategoriesPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/inventory/movements" element={<MovementsPage />} />
+            <Route path="/inventory/stock-sync" element={<StockSyncPage />} />
             <Route
               path="/inventory/entries/new"
               element={<InventoryOperationPage kind="entries" />}
