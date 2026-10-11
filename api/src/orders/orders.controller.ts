@@ -75,6 +75,15 @@ export class OrdersController {
   ) {
     return this.s.fiscalFor(m.companyId, id);
   }
+  @Post(':id/complete-stock')
+  @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER, CompanyRole.BILLING)
+  completeStock(
+    @CurrentMembership() m: CompanyMember,
+    @CurrentUser() u: { id: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.s.completeStock(m.companyId, id, u.id);
+  }
   @Post(':id/cancel')
   @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER, CompanyRole.BILLING)
   cancel(

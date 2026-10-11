@@ -1,6 +1,7 @@
 import { apiRequest } from "./api";
 import type { OrderDetails, OrderPage } from "../types/order";
 export const orderService = {
+  completeStock:(id:string)=>apiRequest(`/orders/${id}/complete-stock`,{method:'POST'}),
   list: (q: URLSearchParams, signal?: AbortSignal) =>
     apiRequest<OrderPage>(`/orders?${q}`, { signal }),
   summary: (signal?: AbortSignal) =>

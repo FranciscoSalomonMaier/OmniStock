@@ -1,3 +1,4 @@
+import { BundlesCompositionService } from '../../product_bundles/bundles-composition/bundles-composition.service';
 import {
   ConflictException,
   Injectable,
@@ -36,6 +37,7 @@ export class MarketplaceStockSyncService {
     private syncs: Repository<MarketplaceStockSync>,
     @InjectRepository(MarketplaceStockDivergence)
     private divergences: Repository<MarketplaceStockDivergence>,
+    private readonly bundles: BundlesCompositionService,
   ) {}
   async requestProduct(companyId: string, productId: string, userId: string) {
     const event = await this.db.transaction(async (m) => {
@@ -52,9 +54,19 @@ export class MarketplaceStockSyncService {
         .getOne();
       if (!balance)
         throw new NotFoundException('Saldo do produto não encontrado.');
-      const quantity = Math.floor(
-        Number(balance.currentQuantity) - Number(balance.reservedQuantity),
+      const kit = await this.bundles.getActiveBundleForProduct(
+        productId,
+        companyId,
+        m,
       );
+      const description = kit
+        ? await this.bundles.describe(companyId, productId, m)
+        : null;
+      const quantity = description
+        ? description.availableKits
+        : Math.floor(
+            Number(balance.currentQuantity) - Number(balance.reservedQuantity),
+          );
       return m.save(
         InventoryOutboxEvent,
         m.create(InventoryOutboxEvent, {

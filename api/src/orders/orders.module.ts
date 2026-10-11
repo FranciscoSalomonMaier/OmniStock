@@ -6,6 +6,7 @@ import { MarketplaceListing } from '../marketplace-connectors/mercado-livre/enti
 import { MarketplaceOrderImportItem } from '../marketplace-connectors/mercado-livre/entities/marketplace-order-import-item.entity';
 import { MarketplaceOrderImport } from '../marketplace-connectors/mercado-livre/entities/marketplace-order-import.entity';
 import { ProductMarketplaceLink } from '../product-marketplace-links/entities/product-marketplace-link.entity';
+import { ProductBundlesModule } from '../product_bundles/product_bundles.module';
 import { Product } from '../products/entities/product.entity';
 import { SalesChannelConnection } from '../sales-channels/entities/sales-channel-connection.entity';
 import {
@@ -16,6 +17,7 @@ import {
   OrderFiscalData,
   OrderIssue,
   OrderItem,
+  OrderItemComponent,
   OrderPayment,
   OrderShipment,
   OrderStatusHistory,
@@ -39,6 +41,7 @@ const entities = [
   OrderIssue,
   OrderStatusHistory,
   OrderBillingOutbox,
+  OrderItemComponent,
   MarketplaceOrderImport,
   MarketplaceOrderImportItem,
   MarketplaceListing,
@@ -51,6 +54,7 @@ const entities = [
     TypeOrmModule.forFeature(entities),
     CompaniesModule,
     InventoryModule,
+    ProductBundlesModule,
   ],
   controllers: [OrdersController],
   providers: [

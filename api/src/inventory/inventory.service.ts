@@ -33,14 +33,11 @@ import {
   InventoryReferenceType,
   InventoryReservationStatus,
 } from './enums/inventory.enums';
-export const units = (v: string) => {
-  if (!/^(?:0|[1-9]\d{0,14})(?:\.\d{1,3})?$/.test(v))
-    throw new BadRequestException('Quantidade inválida');
-  const [a, b = ''] = v.split('.');
-  return BigInt(a) * 1000n + BigInt((b + '000').slice(0, 3));
-};
-export const decimal = (v: bigint) =>
-  `${v / 1000n}.${(v % 1000n).toString().padStart(3, '0')}`;
+import { units, decimal } from './quantity';
+export { units, decimal } from './quantity';
+import { BundlesCompositionService } from '../product_bundles/bundles-composition/bundles-composition.service';
+import { ProductBundle } from '../product_bundles/entities/product_bundle.entity';
+
 @Injectable()
 export class InventoryService {
   constructor(
@@ -51,6 +48,7 @@ export class InventoryService {
     private readonly movements: Repository<InventoryMovement>,
     @InjectRepository(InventoryReservation)
     private readonly reservations: Repository<InventoryReservation>,
+    private readonly bundles: BundlesCompositionService,
   ) {}
   async getBalance(companyId: string, productId: string) {
     const product = await this.product(this.db.manager, companyId, productId);
@@ -71,7 +69,14 @@ export class InventoryService {
     }
     if (!balance)
       throw new ConflictException('Não foi possível inicializar o saldo');
-    return this.view(balance, product);
+    const composition = await this.bundles.describe(companyId, productId);
+    return {
+      ...this.view(balance, product),
+      ...composition,
+      ...(composition.isBundle
+        ? { availableQuantity: composition.availableKits.toFixed(3) }
+        : {}),
+    };
   }
   async listBalances(companyId: string, q: ListInventoryDto) {
     await this.ensureCompanyBalances(companyId);
@@ -88,25 +93,27 @@ export class InventoryService {
       qb.andWhere('p.category_id=:categoryId', { categoryId: q.categoryId });
     if (q.status) qb.andWhere('p.status=:status', { status: q.status });
     if (q.belowMinimum === 'true')
-      qb.andWhere('(b.current_quantity-b.reserved_quantity)<=p.minimum_stock');
+      qb.andWhere(
+        'available_product_stock(b.company_id,b.product_id)<=p.minimum_stock',
+      );
     if (q.withReservation === 'true') qb.andWhere('b.reserved_quantity>0');
     if (q.stockSituation === 'OUT')
-      qb.andWhere('(b.current_quantity-b.reserved_quantity)=0');
+      qb.andWhere('available_product_stock(b.company_id,b.product_id)=0');
     if (q.stockSituation === 'LOW')
       qb.andWhere(
-        '(b.current_quantity-b.reserved_quantity)>0 AND (b.current_quantity-b.reserved_quantity)<=p.minimum_stock',
+        'available_product_stock(b.company_id,b.product_id)>0 AND available_product_stock(b.company_id,b.product_id)<=p.minimum_stock',
       );
     if (q.stockSituation === 'RESERVED') qb.andWhere('b.reserved_quantity>0');
     if (q.stockSituation === 'NORMAL')
       qb.andWhere(
-        '(b.current_quantity-b.reserved_quantity)>p.minimum_stock AND b.reserved_quantity=0',
+        'available_product_stock(b.company_id,b.product_id)>p.minimum_stock AND b.reserved_quantity=0',
       );
     const sort: Record<string, string> = {
       sku: 'p.sku',
       name: 'p.name',
       currentQuantity: 'b.current_quantity',
       reservedQuantity: 'b.reserved_quantity',
-      availableQuantity: '(b.current_quantity-b.reserved_quantity)',
+      availableQuantity: 'available_product_stock(b.company_id,b.product_id)',
       minimumStock: 'p.minimum_stock',
       updatedAt: 'b.updated_at',
     };
@@ -140,16 +147,30 @@ export class InventoryService {
       : [];
     const syncByProduct = new Map(syncRows.map((x) => [x.productId, x]));
     return {
-      data: entities.map((b) => ({
-        ...this.view(b, b.product),
-        syncStatus: syncByProduct.get(b.productId)?.syncStatus ?? 'NOT_SYNCED',
-        linkedChannels: Number(
-          syncByProduct.get(b.productId)?.linkedChannels ?? 0,
-        ),
-        errorChannels: Number(
-          syncByProduct.get(b.productId)?.errorChannels ?? 0,
-        ),
-      })),
+      data: await Promise.all(
+        entities.map(async (b) => {
+          const composition = await this.bundles.describe(
+            companyId,
+            b.productId,
+          );
+          return {
+            ...this.view(b, b.product),
+            availableQuantity: String(
+              composition.isBundle
+                ? composition.availableKits.toFixed(3)
+                : decimal(units(b.currentQuantity) - units(b.reservedQuantity)),
+            ),
+            syncStatus:
+              syncByProduct.get(b.productId)?.syncStatus ?? 'NOT_SYNCED',
+            linkedChannels: Number(
+              syncByProduct.get(b.productId)?.linkedChannels ?? 0,
+            ),
+            errorChannels: Number(
+              syncByProduct.get(b.productId)?.errorChannels ?? 0,
+            ),
+          };
+        }),
+      ),
       meta: {
         page: q.page,
         limit: q.limit,
@@ -165,7 +186,7 @@ export class InventoryService {
       .innerJoin(Product, 'p', 'p.id=b.product_id')
       .select('COUNT(*)', 'totalProducts')
       .addSelect(
-        'COUNT(*) FILTER (WHERE b.current_quantity-b.reserved_quantity<=p.minimum_stock)',
+        'COUNT(*) FILTER (WHERE available_product_stock(b.company_id,b.product_id)<=p.minimum_stock)',
         'belowMinimum',
       )
       .addSelect(
@@ -173,7 +194,7 @@ export class InventoryService {
         'withReservation',
       )
       .addSelect(
-        'COUNT(*) FILTER (WHERE b.current_quantity-b.reserved_quantity=0)',
+        'COUNT(*) FILTER (WHERE available_product_stock(b.company_id,b.product_id)=0)',
         'withoutStock',
       )
       .where('b.company_id=:companyId', { companyId })
@@ -282,9 +303,70 @@ export class InventoryService {
   async reserveOrderItems(
     companyId: string,
     items: Array<{ orderItemId: string; productId: string; quantity: string }>,
+    manager?: EntityManager,
   ) {
-    return this.db.transaction(async (m) => {
+    const work = async (m: EntityManager) => {
+      await this.bundles.lock(companyId, m);
       const results: InventoryReservation[] = [];
+      const grouped = new Map<string, typeof items>();
+      for (const item of items) {
+        if (units(item.quantity) <= 0n)
+          throw new BadRequestException('Quantidade positiva obrigatória.');
+        const group = grouped.get(item.productId) ?? [];
+        group.push(item);
+        grouped.set(item.productId, group);
+      }
+      for (const [productId, group] of [...grouped].sort(([a], [b]) =>
+        a.localeCompare(b),
+      )) {
+        await this.product(m, companyId, productId);
+        if (
+          await this.bundles.getActiveBundleForProduct(productId, companyId, m)
+        )
+          throw new ConflictException(
+            'Snapshot precisa conter produtos físicos.',
+          );
+        await m
+          .createQueryBuilder()
+          .insert()
+          .into(InventoryBalance)
+          .values({
+            companyId,
+            productId,
+            currentQuantity: '0',
+            reservedQuantity: '0',
+          })
+          .orIgnore()
+          .execute();
+        const balance = await m
+          .getRepository(InventoryBalance)
+          .createQueryBuilder('b')
+          .setLock('pessimistic_write')
+          .where('b.company_id=:companyId AND b.product_id=:productId', {
+            companyId,
+            productId,
+          })
+          .getOneOrFail();
+        let delta = 0n;
+        for (const item of group) {
+          const old = await m.findOneBy(InventoryReservation, {
+            companyId,
+            productId,
+            referenceType: InventoryReferenceType.ORDER,
+            referenceId: `ORDER_ITEM:${item.orderItemId}`,
+          });
+          if (old && old.status !== InventoryReservationStatus.ACTIVE) continue;
+          delta += units(item.quantity) - (old ? units(old.quantity) : 0n);
+        }
+        if (
+          delta >
+          units(balance.currentQuantity) - units(balance.reservedQuantity)
+        )
+          throw new ConflictException(
+            'Estoque insuficiente nos componentes consolidados.',
+          );
+      }
+
       for (const item of [...items].sort((a, b) =>
         a.productId.localeCompare(b.productId),
       )) {
@@ -320,6 +402,13 @@ export class InventoryService {
           referenceType: InventoryReferenceType.ORDER,
           referenceId,
         });
+        if (
+          reservation &&
+          reservation.status !== InventoryReservationStatus.ACTIVE
+        ) {
+          results.push(reservation);
+          continue;
+        }
         const wanted = units(item.quantity),
           old =
             reservation?.status === InventoryReservationStatus.ACTIVE
@@ -371,10 +460,12 @@ export class InventoryService {
         results.push(reservation);
       }
       return results;
-    });
+    };
+    return manager ? work(manager) : this.db.transaction(work);
   }
   async cancelOrderReservations(companyId: string, reservationIds: string[]) {
     return this.db.transaction(async (m) => {
+      await this.bundles.lock(companyId, m);
       for (const id of [...new Set(reservationIds)].sort()) {
         const reservation = await m.findOneBy(InventoryReservation, {
           id,
@@ -414,6 +505,118 @@ export class InventoryService {
       }
     });
   }
+  async settleOrderItems(
+    companyId: string,
+    ids: string[],
+    action: 'cancel' | 'complete',
+    manager?: EntityManager,
+    userId?: string,
+  ) {
+    const work = async (m: EntityManager) => {
+      await this.bundles.lock(companyId, m);
+      const refs = ids.map((id) => `ORDER_ITEM:${id}`);
+      if (!refs.length) return [];
+      const reservations = await m
+        .getRepository(InventoryReservation)
+        .createQueryBuilder('r')
+        .setLock('pessimistic_write')
+        .where(
+          'r.company_id=:companyId AND r.reference_type=:type AND r.reference_id IN (:...refs)',
+          { companyId, type: InventoryReferenceType.ORDER, refs },
+        )
+        .orderBy('r.product_id', 'ASC')
+        .addOrderBy('r.id', 'ASC')
+        .getMany();
+      const result: InventoryMovement[] = [];
+      for (const r of reservations) {
+        if (
+          action === 'complete' &&
+          r.status !== InventoryReservationStatus.ACTIVE
+        )
+          continue;
+        if (
+          action === 'cancel' &&
+          r.status === InventoryReservationStatus.CANCELED
+        )
+          continue;
+        const b = await m
+          .getRepository(InventoryBalance)
+          .createQueryBuilder('b')
+          .setLock('pessimistic_write')
+          .where('b.id=:id AND b.company_id=:companyId', {
+            id: r.inventoryBalanceId,
+            companyId,
+          })
+          .getOneOrFail();
+        if (r.status === InventoryReservationStatus.COMPLETED) {
+          const original = await m.findOneBy(InventoryMovement, {
+            companyId,
+            productId: r.productId,
+            referenceId: r.referenceId,
+            type: InventoryMovementType.SALE_COMPLETED,
+          });
+          if (!original)
+            throw new ConflictException(
+              'Movimentação original da reserva não encontrada.',
+            );
+          if (
+            !(await m.existsBy(InventoryMovement, {
+              companyId,
+              reversalOfMovementId: original.id,
+            }))
+          )
+            result.push(
+              await this.persist(
+                m,
+                b,
+                userId ?? null,
+                InventoryMovementType.SALE_CANCELED_REVERSAL,
+                units(original.quantity),
+                units(b.currentQuantity) + units(original.quantity),
+                units(b.reservedQuantity),
+                'Estorno de componentes do pedido',
+                null,
+                null,
+                InventoryReferenceType.ORDER,
+                r.referenceId,
+                original.id,
+              ),
+            );
+        } else {
+          result.push(
+            await this.persist(
+              m,
+              b,
+              userId ?? null,
+              action === 'complete'
+                ? InventoryMovementType.SALE_COMPLETED
+                : InventoryMovementType.RESERVATION_CANCELED,
+              units(r.quantity),
+              units(b.currentQuantity) -
+                (action === 'complete' ? units(r.quantity) : 0n),
+              units(b.reservedQuantity) - units(r.quantity),
+              action === 'complete'
+                ? 'Baixa de componentes do pedido'
+                : 'Cancelamento de componentes do pedido',
+              null,
+              null,
+              InventoryReferenceType.ORDER,
+              r.referenceId,
+            ),
+          );
+        }
+        r.status =
+          action === 'complete'
+            ? InventoryReservationStatus.COMPLETED
+            : InventoryReservationStatus.CANCELED;
+        if (action === 'complete') r.completedAt = new Date();
+        else r.canceledAt = new Date();
+        await m.save(r);
+      }
+      return result;
+    };
+    return manager ? work(manager) : this.db.transaction(work);
+  }
   cancelReservation(c: string, u: string, id: string, k: string) {
     return this.processReservation(c, u, id, k, false);
   }
@@ -423,6 +626,7 @@ export class InventoryService {
   async reverseSale(c: string, u: string, id: string, k: string) {
     if (!k) throw new BadRequestException('Idempotency-Key é obrigatório');
     return this.db.transaction(async (m) => {
+      await this.bundles.lock(c, m);
       const hash = createHash('sha256')
         .update(JSON.stringify({ id, action: 'reverse' }))
         .digest('hex');
@@ -603,6 +807,7 @@ export class InventoryService {
   ) {
     if (!k) throw new BadRequestException('Idempotency-Key é obrigatório');
     return this.db.transaction(async (m) => {
+      await this.bundles.lock(c, m);
       const hash = createHash('sha256')
         .update(JSON.stringify({ id, complete }))
         .digest('hex');
@@ -685,6 +890,7 @@ export class InventoryService {
   ) {
     if (!k) throw new BadRequestException('Idempotency-Key é obrigatório');
     return this.db.transaction(async (m) => {
+      await this.bundles.lock(c, m);
       const hash = createHash('sha256')
         .update(JSON.stringify(payload))
         .digest('hex');
@@ -700,6 +906,16 @@ export class InventoryService {
         return existing;
       }
       await this.product(m, c, p);
+      if (
+        await m.findOneBy(ProductBundle, {
+          companyId: c,
+          bundleProductId: p,
+          active: true,
+        })
+      )
+        throw new BadRequestException(
+          'Kits usam o estoque dos componentes; movimentação direta não permitida.',
+        );
       await m
         .createQueryBuilder()
         .insert()
@@ -825,6 +1041,7 @@ export class InventoryService {
         }),
       );
     }
+    await this.bundles.queueChanges(b.companyId, b.productId, m);
     return movement;
   }
   private async product(m: EntityManager, c: string, p: string) {

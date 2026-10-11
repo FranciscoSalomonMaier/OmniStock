@@ -47,6 +47,7 @@ export interface OrderDetails extends OrderListItem {
     currency: string;
     productId: string | null;
     externalItemId: string | null;
+    components: Array<{ id: string; productId: string; productName: string; quantityPerBundle: string; quantityConsumed: string }>;
     inventoryReservationId: string | null;
     reserved: boolean;
     inventory: {

@@ -19,6 +19,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { ProductMarketplaceLinksModule } from './product-marketplace-links/product-marketplace-links.module';
 import { OrdersModule } from './orders/orders.module';
 import { MarketplaceStockModule } from './marketplace-connectors/stock/marketplace-stock.module';
+import { ProductBundlesModule } from './product_bundles/product_bundles.module';
+import { ProductBundleComponentsModule } from './product_bundle_components/product_bundle_components.module';
 
 @Module({
   imports: [
@@ -50,6 +52,8 @@ import { MarketplaceStockModule } from './marketplace-connectors/stock/marketpla
     OrdersModule,
     SalesChannelsModule,
     MarketplaceStockModule,
+    ProductBundlesModule,
+    ProductBundleComponentsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [

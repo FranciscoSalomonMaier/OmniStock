@@ -1,3 +1,4 @@
+import { Product } from '../products/entities/product.entity';
 import {
   ConflictException,
   Injectable,
@@ -22,6 +23,7 @@ import {
   OrderFiscalData,
   OrderIssue,
   OrderItem,
+  OrderItemComponent,
   OrderPayment,
   OrderShipment,
   OrderStatusHistory,
@@ -246,6 +248,25 @@ export class OrdersService {
       items: await Promise.all(
         items.map(async (item) => ({
           ...item,
+          components: await this.db.manager
+            .createQueryBuilder(OrderItemComponent, 'c')
+            .leftJoin(
+              Product,
+              'p',
+              'p.id=c.component_product_id AND p.company_id=c.company_id',
+            )
+            .select([
+              'c.id AS id',
+              'c.component_product_id AS "productId"',
+              'p.name AS "productName"',
+              'c.quantity_per_bundle AS "quantityPerBundle"',
+              'c.quantity_consumed AS "quantityConsumed"',
+            ])
+            .where('c.company_id=:companyId AND c.order_item_id=:id', {
+              companyId,
+              id: item.id,
+            })
+            .getRawMany(),
           inventory: item.productId
             ? await this.inventory.getBalance(companyId, item.productId)
             : null,
@@ -261,6 +282,9 @@ export class OrdersService {
       history,
     };
   }
+  completeStock(companyId: string, id: string, userId: string) {
+    return this.processing.completeReservations(companyId, id, userId);
+  }
   async cancel(
     companyId: string,
     id: string,
@@ -268,7 +292,6 @@ export class OrdersService {
     d: CancelOrderDto,
   ) {
     const items = await this.items.findBy({ companyId, orderId: id });
-    await this.processing.cancelReservations(companyId, items);
     return this.db.transaction(async (m) => {
       const repo = m.getRepository(Order),
         o = await repo
@@ -278,6 +301,7 @@ export class OrdersService {
           .getOne();
       if (!o) throw new NotFoundException('Pedido não encontrado.');
       this.transitions.assert(o.status, OrderStatus.CANCELED);
+      await this.processing.cancelReservations(companyId, items, m);
       const previous = o.status;
       o.status = OrderStatus.CANCELED;
       o.canceledAt = new Date();

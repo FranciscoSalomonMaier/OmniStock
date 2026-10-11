@@ -105,6 +105,7 @@ export function OrderDetailsPage() {
               Tentar reserva
             </button>
           )}
+          {canCancel && o.processingStatus === 'READY_FOR_BILLING' && o.orderStatus !== 'CANCELED' && <button disabled={busy} onClick={()=>{if(window.confirm('Dar baixa em todos os componentes reservados deste pedido?')){setBusy(true);orderService.completeStock(id).then(load).catch(e=>setError(e instanceof Error?e.message:'Falha na baixa.')).finally(()=>setBusy(false));}}}>Dar baixa no estoque</button>}
           {canCancel && !["CANCELED", "DELIVERED"].includes(o.orderStatus) && (
             <button className="danger" onClick={() => void cancel()}>
               Cancelar
@@ -148,7 +149,7 @@ export function OrderDetailsPage() {
               {o.items.map((i) => (
                 <tr key={i.id}>
                   <td>{i.skuSnapshot}</td>
-                  <td>{i.nameSnapshot}</td>
+                  <td>{i.nameSnapshot}{i.components?.length>0 && <ul aria-label="Consumo de estoque">{i.components.map(c=><li key={c.id}>Consumo de estoque: {c.quantityConsumed} × {c.productName}</li>)}</ul>}</td>
                   <td>{i.quantity}</td>
                   <td>
                     {i.currency} {i.unitPrice}

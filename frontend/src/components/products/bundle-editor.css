@@ -1,0 +1,38 @@
+.bundle-editor { padding: 1.5rem; border: 1px solid #d6dfd7; border-radius: 14px; background: #fff; color: #172019; }
+.bundle-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; margin-bottom: 1.25rem; }
+.bundle-editor h2 { margin: 0; font-size: 1.25rem; }
+.bundle-editor h3 { margin: 0; font-size: .95rem; }
+.bundle-header p, .bundle-note { margin: .45rem 0; color: #657168; font-size: .9rem; line-height: 1.6; }
+.bundle-type { padding: .4rem .75rem; border-radius: 999px; background: #e7f2ea; color: #17673d; font-size: .8rem; font-weight: 700; white-space: nowrap; }
+.bundle-summary { display: flex; align-items: center; gap: 1rem; padding: 1.1rem; border: 1px solid #d7eadf; border-radius: 12px; background: #f1f7f3; }
+.bundle-summary-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #e0eee4; color: #237447; font-size: 1.6rem; flex-shrink: 0; }
+.bundle-summary div { display: grid; gap: .2rem; }
+.bundle-summary div > span { color: #526159; font-size: .8rem; }
+.bundle-summary strong { color: #17673d; font-size: 1.65rem; }
+.bundle-summary small { font-size: .9rem; font-weight: 500; }
+.bundle-summary p { margin: 0 0 0 auto; color: #657168; font-size: .85rem; line-height: 1.6; }
+.bundle-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin: 1.5rem 0 .75rem; }
+.bundle-section-heading > span { color: #657168; font-size: .8rem; }
+.bundle-components { list-style: none; padding: 0; margin: 0; display: grid; gap: .65rem; }
+.bundle-components li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem; border: 1px solid #dce4dc; border-radius: 10px; }
+.bundle-component-info { display: grid; gap: .4rem; min-width: 0; overflow-wrap: anywhere; }
+.bundle-component-info strong { font-size: .92rem; font-weight: 600; }
+.bundle-component-info span { color: #17673d; font-size: .82rem; }
+.bundle-component-actions { display: flex; flex-wrap: wrap; gap: .5rem; flex-shrink: 0; }
+.bundle-editor .bundle-button { min-height: 40px; padding: .65rem .9rem; border: 1px solid transparent; border-radius: 8px; font-size: .85rem; font-weight: 600; transition: background .15s; }
+.bundle-editor .bundle-primary { color: #fff; background: #237447; }
+.bundle-editor .bundle-primary:hover:not(:disabled) { background: #195e38; }
+.bundle-editor .bundle-secondary { color: #17673d; background: #eaf4ed; border-color: #d7eadf; }
+.bundle-editor .bundle-secondary:hover:not(:disabled) { background: #dceee2; }
+.bundle-editor .bundle-remove { color: #8a2929; background: #fff; border-color: #ecdada; }
+.bundle-editor .bundle-remove:hover:not(:disabled) { background: #fff0f0; }
+.bundle-add-panel { margin-top: 1.25rem; padding: 1.25rem; border-radius: 12px; background: #f5f7f5; border: 1px solid #e1e7e2; }
+.bundle-fields { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.3fr) minmax(130px,.55fr); gap: 1rem; margin-top: 1rem; align-items: start; }
+.bundle-editor .bundle-fields label { display: grid; gap: .45rem; min-width: 0; color: #526159; font-size: .8rem; font-weight: 600; }
+.bundle-editor .bundle-fields input, .bundle-editor .bundle-fields select { box-sizing: border-box; width: 100%; min-width: 0; height: 44px; padding: .65rem .75rem; border: 1px solid #cdd8cf; border-radius: 8px; background: #fff; color: #172019; font: inherit; font-weight: 400; }
+.bundle-fields small { color: #657168; font-size: .75rem; font-weight: 400; }
+.bundle-add-actions { display: flex; justify-content: flex-end; margin-top: 1rem; }
+.bundle-empty { padding: 1rem; border: 1px dashed #afc2b3; border-radius: 10px; color: #657168; font-size: .9rem; }
+.bundle-editor input:focus-visible, .bundle-editor select:focus-visible, .bundle-editor button:focus-visible { outline: 2px solid #237447; outline-offset: 3px; }
+@media (max-width: 850px) { .bundle-fields { grid-template-columns: 1fr; } .bundle-components li { align-items: flex-start; flex-direction: column; } .bundle-summary { flex-wrap: wrap; } .bundle-summary p { width: 100%; margin: 0; } }
+@media (max-width: 500px) { .bundle-editor { padding: 1rem; } .bundle-header { flex-wrap: wrap; } .bundle-add-panel { padding: 1rem; } .bundle-add-actions .bundle-button { width: 100%; } }

@@ -175,7 +175,7 @@ export class MercadoLivreApiClient {
           );
           continue;
         }
-        throw this.httpError(response);
+        throw await this.detailedHttpError(response, init);
       } catch (error) {
         if (error instanceof MarketplaceConnectorError) throw error;
         if (retryable && attempt < 2) {
@@ -201,6 +201,67 @@ export class MercadoLivreApiClient {
       'PROVIDER_UNAVAILABLE',
       'O Mercado Livre está temporariamente indisponível.',
       true,
+    );
+  }
+  private async detailedHttpError(response: Response, init: RequestInit) {
+    const fallback = this.httpError(response);
+    const secrets = [
+      this.clientSecret,
+      new Headers(init.headers)
+        .get('authorization')
+        ?.replace(/^Bearer\s+/i, ''),
+      ...Array.from(
+        new URLSearchParams(
+          typeof init.body === 'string' ? init.body : '',
+        ).entries(),
+      )
+        .filter(([key]) =>
+          ['client_secret', 'refresh_token', 'code'].includes(key),
+        )
+        .map(([, value]) => value),
+    ].filter((value): value is string => Boolean(value));
+    const clean = (value: unknown) => {
+      if (typeof value !== 'string' && typeof value !== 'number') return '';
+      let text = String(value);
+      for (const secret of secrets) text = text.split(secret).join('[oculto]');
+      return text
+        .replace(/APP_USR-[\w-]+/g, '[oculto]')
+        .replace(/[\r\n\t]+/g, ' ')
+        .slice(0, 300);
+    };
+    let details = '';
+    try {
+      const body: unknown = await response.json();
+      if (body && typeof body === 'object') {
+        const data = body as Record<string, unknown>;
+        const causes = Array.isArray(data.cause)
+          ? data.cause.slice(0, 3).flatMap((cause: unknown) => {
+              if (!cause || typeof cause !== 'object') return [];
+              const entry = cause as Record<string, unknown>;
+              return [
+                [clean(entry.code), clean(entry.message)]
+                  .filter(Boolean)
+                  .join(': '),
+              ];
+            })
+          : [];
+        details = [clean(data.error), clean(data.message), ...causes]
+          .filter(Boolean)
+          .join(' — ');
+      }
+    } catch {
+      // HTML or an empty error body must preserve the HTTP classification.
+    }
+    return new MarketplaceConnectorError(
+      fallback.code,
+      `Mercado Livre (HTTP ${response.status}): ${details || fallback.message}`.slice(
+        0,
+        500,
+      ),
+      fallback.retryable,
+      response.status,
+      response.headers.get('x-request-id'),
+      fallback.retryAfterSeconds,
     );
   }
   private httpError(response: Response) {

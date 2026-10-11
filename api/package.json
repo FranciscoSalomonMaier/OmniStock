@@ -20,12 +20,14 @@
     "migration:revert:prod": "typeorm migration:revert -d dist/database/data-source.js",
     "seed:admin": "ts-node src/database/seed-admin.ts",
     "seed:sales-channels": "ts-node src/database/seed-sales-channels.ts",
+    "seed:kit-demo": "ts-node src/database/seed-kit-demo.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:kits:integration": "npm run build && node test/kits/kits.integration.cjs"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.5",

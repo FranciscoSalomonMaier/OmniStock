@@ -1,3 +1,4 @@
+import { BundlesCompositionService } from '../../product_bundles/bundles-composition/bundles-composition.service';
 import { InjectQueue, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -67,6 +68,7 @@ export class MarketplaceStockProcessor extends WorkerHost {
     private registry: MarketplaceConnectorRegistry,
     private credentials: MarketplaceCredentialProvider,
     private ml: MercadoLivreIntegrationService,
+    private readonly bundles: BundlesCompositionService,
   ) {
     super();
   }
@@ -280,9 +282,18 @@ export class MarketplaceStockProcessor extends WorkerHost {
           'CONNECTION_NOT_READY',
           'Vínculo ou conexão não está ativo.',
         );
-      const current = Math.floor(
-        Number(balance.currentQuantity) - Number(balance.reservedQuantity),
+      const isBundle = await this.bundles.getActiveBundleForProduct(
+        d.productId,
+        d.companyId,
       );
+      const description = isBundle
+        ? await this.bundles.describe(d.companyId, d.productId)
+        : null;
+      const current = description
+        ? description.availableKits
+        : Math.floor(
+            Number(balance.currentQuantity) - Number(balance.reservedQuantity),
+          );
       if (balance.version > d.inventoryVersion) {
         record.status = StockSyncStatus.SUPERSEDED;
         record.lastErrorCode = 'NEWER_INVENTORY_VERSION';

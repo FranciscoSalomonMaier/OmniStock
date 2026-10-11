@@ -311,7 +311,7 @@ export function InventoryPage() {
                         {label}
                       </span>
                     </td>
-                    <td>{x.syncStatus}{x.errorChannels ? ` (${x.errorChannels} erro)` : ""}</td>
+                    <td>{x.syncStatus}{x.errorChannels ? <> ({x.errorChannels} erro) <Link to="/inventory/stock-sync?status=FAILED">Ver erros</Link></> : null}</td>
                     <td>{x.linkedChannels}</td>
                     <td>{new Date(x.updatedAt).toLocaleString("pt-BR")}</td>
                     <td>

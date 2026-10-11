@@ -25,7 +25,9 @@ export function IntegrationDetailsPage() {
     [data, setData] = useState<ChannelConnection | null>(null),
     [descriptor, setDescriptor] =
       useState<MarketplaceConnectorDescriptor | null>(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [validationMessage, setValidationMessage] = useState(""),
+    [validating, setValidating] = useState(false);
   const canManage = ["ADMIN", "MANAGER"].includes(activeMembership?.role ?? ""),
     isAdmin = activeMembership?.role === "ADMIN";
   const load = useCallback(async () => {
@@ -65,11 +67,26 @@ export function IntegrationDetailsPage() {
       );
     }
   }
+  async function validateConnection() {
+    setValidating(true);
+    setError("");
+    setValidationMessage("");
+    try {
+      await integrationService.validate(id);
+      await load();
+      setValidationMessage("Conexão validada com sucesso.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível validar a conexão.");
+    } finally {
+      setValidating(false);
+    }
+  }
   return (
     <main className="page">
       <Link to="/integrations">← Integrações</Link>
       <h1>{data?.displayName ?? "Conexão"}</h1>
       {error && <p className="form-error">{error}</p>}
+      {validationMessage && <p className="success-message" role="status">{validationMessage}</p>}
       {data && (
         <>
           <p>
@@ -159,16 +176,19 @@ export function IntegrationDetailsPage() {
               {descriptor?.enabled &&
               descriptor.capabilities.authorization.implemented ? (
                 <button
-                  onClick={() =>
-                    void action(() => integrationService.validate(id))
-                  }
+                  disabled={validating || data.status === "DISCONNECTED" || data.status === "DISABLED"}
+                  title={data.status === "DISCONNECTED" ? "Conecte sua conta antes de validar." : undefined}
+                  onClick={() => void validateConnection()}
                 >
-                  Validar
+                  {validating ? "Validando…" : "Validar"}
                 </button>
               ) : (
                 <button disabled title="Conector ainda não implementado">
                   Validar — em breve
                 </button>
+              )}
+              {data.status === "DISCONNECTED" && descriptor?.enabled && (
+                <p>Conecte sua conta para habilitar a validação.</p>
               )}
               {data.status === "DISABLED" ? (
                 <button

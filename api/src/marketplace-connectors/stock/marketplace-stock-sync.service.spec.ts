@@ -39,6 +39,7 @@ describe('MarketplaceStockSyncService', () => {
       {} as never,
       {} as never,
       {} as never,
+      { getActiveBundleForProduct: jest.fn().mockResolvedValue(null) } as never,
     );
     return { service, saved };
   }

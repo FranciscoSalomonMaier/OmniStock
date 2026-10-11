@@ -1,3 +1,4 @@
+import { BundleEditor } from '../../components/products/BundleEditor';
 import {
   useCallback,
   useEffect,
@@ -388,6 +389,7 @@ export function ProductFormPage() {
           <Link to="/products">Cancelar</Link>
         </div>
       </form>
+      {id && <BundleEditor key={id} productId={id}/>}
       <ErrorDialog
         open={Boolean(dialog)}
         title={

@@ -1,3 +1,4 @@
+import { BundlesCompositionService } from '../product_bundles/bundles-composition/bundles-composition.service';
 import {
   BadRequestException,
   ConflictException,
@@ -27,6 +28,7 @@ export class ProductsService {
     private readonly images: Repository<ProductImage>,
     private readonly storage: LocalStorageService,
     private readonly config: ConfigService,
+    private readonly bundles: BundlesCompositionService,
   ) {}
   async create(companyId: string, userId: string, dto: CreateProductDto) {
     await this.validateCategory(companyId, dto.categoryId);
@@ -125,7 +127,10 @@ export class ProductsService {
       relations: { category: true, images: true },
     });
     if (!product) throw new NotFoundException('Produto não encontrado');
-    return role ? this.visible(product, role) : product;
+    return {
+      ...(role ? this.visible(product, role) : product),
+      ...(await this.bundles.describe(companyId, id)),
+    };
   }
   async update(
     companyId: string,

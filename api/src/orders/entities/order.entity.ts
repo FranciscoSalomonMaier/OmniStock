@@ -233,6 +233,16 @@ export class OrderAddress {
 }
 @Entity('order_items')
 export class OrderItem {
+  @Column({
+    name: 'stock_sold_quantity',
+    type: 'numeric',
+    precision: 15,
+    scale: 3,
+    nullable: true,
+  })
+  stockSoldQuantity: string | null;
+  @Column({ name: 'stock_snapshot_created', type: 'boolean', default: false })
+  stockSnapshotCreated: boolean;
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ name: 'company_id', type: 'uuid' }) companyId: string;
   @Column({ name: 'order_id', type: 'uuid' }) orderId: string;
@@ -326,6 +336,34 @@ export class OrderItem {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }
+
+@Entity('order_item_components')
+export class OrderItemComponent {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Column({ name: 'company_id', type: 'uuid' }) companyId: string;
+  @Column({ name: 'order_item_id', type: 'uuid' }) orderItemId: string;
+  @Column({ name: 'component_product_id', type: 'uuid' })
+  componentProductId: string;
+  @Column({
+    name: 'quantity_per_bundle',
+    type: 'numeric',
+    precision: 15,
+    scale: 3,
+  })
+  quantityPerBundle: string;
+  @Column({
+    name: 'quantity_consumed',
+    type: 'numeric',
+    precision: 15,
+    scale: 3,
+  })
+  quantityConsumed: string;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
+  createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
+  updatedAt: Date;
+}
+
 @Entity('order_payments')
 export class OrderPayment {
   @PrimaryGeneratedColumn('uuid') id: string;
