@@ -87,7 +87,7 @@ export function IntegrationsPage() {
             <span>{channel.type}</span>
             <p>{channel.description}</p>
             {canManage && (
-              <button onClick={() => void connect(channel)}>
+              <button className="integration-prepare-button" type="button" onClick={() => void connect(channel)}>
                 Preparar conexão
               </button>
             )}

@@ -5,3 +5,16 @@
 .nav-group-items{max-height:0;overflow:hidden;opacity:0;transition:max-height .25s ease,opacity .15s ease}
 .nav-group-items.expanded{max-height:24rem;opacity:1}
 @media(prefers-reduced-motion:reduce){.nav-chevron,.nav-group-items{transition:none}}
+.user-menu { position: relative; margin-left: auto; flex-shrink: 0; }
+.user-menu summary { display: flex; align-items: center; gap: .6rem; padding: .6rem .75rem; border-radius: 8px; color: #235638; list-style: none; }
+.user-menu summary::-webkit-details-marker { display: none; }
+.user-menu summary > span:first-child { max-width: 180px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.user-menu summary:hover, .user-menu[open] summary { background: #eaf4ed; }
+.user-menu-chevron { transition: transform .15s; }
+.user-menu[open] .user-menu-chevron { transform: rotate(180deg); }
+.user-menu-panel { position: absolute; top: calc(100% + .6rem); right: 0; width: 200px; max-width: calc(100vw - 2rem); padding: .4rem; border: 1px solid #dce4dc; border-radius: 10px; background: #fff; box-shadow: 0 8px 24px rgba(28,56,37,.12); z-index: 25; }
+.user-menu .user-menu-panel a, .user-menu .user-menu-panel button { display: block; box-sizing: border-box; width: 100%; margin: 0; padding: .7rem .8rem; border-radius: 7px; text-align: left; text-decoration: none; font: inherit; font-size: .9rem; }
+.user-menu .user-menu-panel a:hover, .user-menu .user-menu-panel button:hover { background: #eaf4ed; }
+.user-menu .user-menu-panel .user-menu-logout { margin-top: .25rem; border-top: 1px solid #e5ebe6; color: #8a2929; }
+.user-menu :is(summary,a,button):focus-visible { outline: 2px solid #237447; outline-offset: 2px; }
+@media(max-width:600px) { .app-header { gap: .5rem; } .company-picker { min-width: 0; } .company-picker select { max-width: 100%; } .user-menu summary > span:first-child { max-width: 90px; } }

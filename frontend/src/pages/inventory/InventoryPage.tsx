@@ -1,3 +1,4 @@
+import { InventoryActions } from '../../components/inventory/InventoryActions';
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { TablePagination } from "../../components/data/TablePagination";
@@ -315,8 +316,7 @@ export function InventoryPage() {
                     <td>{x.linkedChannels}</td>
                     <td>{new Date(x.updatedAt).toLocaleString("pt-BR")}</td>
                     <td>
-                      <details className="row-actions">
-                        <summary>Ações</summary>
+                      <InventoryActions>
                         <Link to={`/inventory/products/${x.product.id}`}>
                           Visualizar saldo
                         </Link>
@@ -352,7 +352,7 @@ export function InventoryPage() {
                         >
                           Ver histórico
                         </Link>
-                      </details>
+                        </InventoryActions>
                     </td>
                   </tr>
                 );

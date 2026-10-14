@@ -6,6 +6,7 @@ import { inventoryService } from "../../services/inventory.service";
 import { productService } from "../../services/product.service";
 import type { InventoryBalance } from "../../types/inventory";
 import type { Product } from "../../types/product";
+import "./inventory.css";
 export function InventoryOperationPage({
   kind,
 }: {
@@ -189,7 +190,7 @@ export function InventoryOperationPage({
           </p>
         )}
         {error && <p className="form-error">{error}</p>}
-        <button disabled={submitting || exceeds}>
+        <button className="inventory-operation-submit" type="submit" disabled={submitting || exceeds}>
           {submitting ? "Salvando..." : "Continuar"}
         </button>
       </form>
