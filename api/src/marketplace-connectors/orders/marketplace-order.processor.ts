@@ -44,6 +44,7 @@ export class MarketplaceOrderProcessor extends WorkerHost {
       event = d.webhookEventId
         ? await this.events.findOneBy({ id: d.webhookEventId })
         : null;
+    if (event && event.queueGeneration > 0) return { skipped: true };
     try {
       const connection = await this.connections.findOne({
         where: { id: d.marketplaceAccountId, companyId: d.companyId },
@@ -59,27 +60,13 @@ export class MarketplaceOrderProcessor extends WorkerHost {
         event.attempts = job.attemptsMade + 1;
         await this.events.save(event);
       }
-      const credentials = await this.mlTokens.validTokens(connection),
-        context: ConnectorContext = {
-          companyId: d.companyId,
-          connectionId: connection.id,
-          channelCode: connection.channel.code,
-          externalAccountId: connection.externalAccountId,
-          correlationId: d.correlationId,
-          operationId: String(job.id),
-          locale: 'pt-BR',
-          credentials,
-          metadata: { source: d.source },
-        },
-        external = await this.registry
-          .get(connection.channel.code)
-          .getOrder({ context, externalOrderId: d.externalOrderId }),
-        order = await this.importer.ingestMarketplace(
-          connection,
-          external,
-          d.source === 'MANUAL',
-        );
-      await this.processing.process(d.companyId, order.id, d.correlationId);
+      const order = await this.ingest(
+        connection,
+        d.externalOrderId,
+        d.correlationId,
+        d.source,
+        String(job.id),
+      );
       if (event) {
         event.status = MarketplaceWebhookEventStatus.PROCESSED;
         event.processedAt = new Date();
@@ -131,6 +118,40 @@ export class MarketplaceOrderProcessor extends WorkerHost {
       });
       throw error;
     }
+  }
+  async ingest(
+    connection: SalesChannelConnection,
+    externalOrderId: string,
+    correlationId: string,
+    source: string,
+    operationId: string,
+  ) {
+    const credentials = await this.mlTokens.validTokens(connection),
+      context: ConnectorContext = {
+        companyId: connection.companyId,
+        connectionId: connection.id,
+        channelCode: connection.channel.code,
+        externalAccountId: connection.externalAccountId,
+        correlationId,
+        operationId: operationId,
+        locale: 'pt-BR',
+        credentials,
+        metadata: { source },
+      },
+      external = await this.registry
+        .get(connection.channel.code)
+        .getOrder({ context, externalOrderId }),
+      order = await this.importer.ingestMarketplace(
+        connection,
+        external,
+        source === 'MANUAL',
+      );
+    await this.processing.process(
+      connection.companyId,
+      order.id,
+      correlationId,
+    );
+    return order;
   }
   @OnWorkerEvent('failed') failed() {
     /* state is persisted by process; hook keeps an instrumentation point */

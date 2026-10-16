@@ -1,3 +1,7 @@
+import {
+  remainingProviderTime,
+  providerDeadline,
+} from '../core/provider-request-budget';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MarketplaceConnectorError } from '../core/marketplace-errors';
@@ -92,6 +96,43 @@ export class MercadoLivreApiClient {
       { token },
     );
   }
+  getUserProductStock(token: string, id: string) {
+    return this.request<{
+      id: string;
+      user_id: number;
+      locations: Array<{ type: string; quantity: number }>;
+    }>(`/user-products/${encodeURIComponent(id)}/stock`, { token });
+  }
+  searchUserProductItems(
+    token: string,
+    seller: string,
+    id: string,
+    offset: number,
+  ) {
+    return this.request<{
+      results: string[];
+      paging: { total: number; limit: number; offset: number };
+    }>(
+      `/users/${encodeURIComponent(seller)}/items/search?user_product_id=${encodeURIComponent(id)}&limit=50&offset=${offset}`,
+      { token },
+    );
+  }
+  getShipmentItems(token: string, id: string) {
+    return this.request<
+      Array<{ order_id: number; sender_id?: number; seller_id?: number }>
+    >(`/shipments/${encodeURIComponent(id)}/items`, {
+      token,
+      headers: { 'x-format-new': 'true' },
+    });
+  }
+  getCollection(token: string, id: string) {
+    return this.request<{
+      id: number;
+      collector_id?: number;
+      order_id?: number;
+      status: string;
+    }>(`/collections/${encodeURIComponent(id)}`, { token });
+  }
   getShipment(token: string, id: string) {
     return this.request<MercadoLivreShipment>(
       `/shipments/${encodeURIComponent(id)}`,
@@ -151,14 +192,29 @@ export class MercadoLivreApiClient {
   }
   private async raw(path: string, init: RequestInit, retryable: boolean) {
     for (let attempt = 0; attempt < 3; attempt++) {
+      const deadline = providerDeadline();
+      if (deadline !== undefined && Date.now() >= deadline)
+        throw new MarketplaceConnectorError(
+          'PROVIDER_TIMEOUT',
+          'Tempo de processamento excedido.',
+          true,
+        );
       const controller = new AbortController(),
-        timer = setTimeout(() => controller.abort(), this.timeout);
+        timer = setTimeout(
+          () => controller.abort(),
+          remainingProviderTime(this.timeout),
+        );
       try {
         const response = await fetch(`${this.apiBase}${path}`, {
           ...init,
           signal: controller.signal,
         });
         if (response.ok || response.status === 206) return response;
+        if (
+          deadline !== undefined &&
+          [429, 502, 503, 504].includes(response.status)
+        )
+          throw await this.detailedHttpError(response, init);
         if (
           retryable &&
           [429, 502, 503, 504].includes(response.status) &&

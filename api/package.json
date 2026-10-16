@@ -27,7 +27,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:kits:integration": "npm run build && node test/kits/kits.integration.cjs"
+    "test:kits:integration": "npm run build && node test/kits/kits.integration.cjs",
+    "test:webhooks:integration": "node test/webhooks/webhooks.integration.cjs"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.5",

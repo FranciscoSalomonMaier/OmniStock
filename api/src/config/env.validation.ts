@@ -84,6 +84,32 @@ export const envValidationSchema = Joi.object({
     .integer()
     .min(1000)
     .default(10000),
+  MARKETPLACE_WEBHOOKS_ENABLED: Joi.boolean().default(true),
+  MARKETPLACE_WEBHOOK_MAX_BODY_SIZE: Joi.string()
+    .pattern(/^\d+(kb|mb)$/)
+    .default('256kb'),
+  MARKETPLACE_WEBHOOK_RATE_LIMIT: Joi.number().integer().min(1).default(120),
+  MARKETPLACE_WEBHOOK_RATE_WINDOW_SECONDS: Joi.number()
+    .integer()
+    .min(1)
+    .default(60),
+  MARKETPLACE_WEBHOOK_MAX_ATTEMPTS: Joi.number()
+    .integer()
+    .min(1)
+    .max(20)
+    .default(5),
+  MARKETPLACE_WEBHOOK_BACKOFF_MS: Joi.number().integer().min(100).default(5000),
+  MARKETPLACE_WEBHOOK_CONCURRENCY: Joi.number()
+    .integer()
+    .min(1)
+    .max(5)
+    .default(5),
+  MARKETPLACE_WEBHOOK_PROCESSING_TIMEOUT_MS: Joi.number()
+    .integer()
+    .min(1000)
+    .max(300000)
+    .default(30000),
+  MARKETPLACE_WEBHOOK_STALE_MINUTES: Joi.number().integer().min(6).default(10),
   SHOPEE_CONNECTOR_ENABLED: Joi.boolean().default(false),
   AMAZON_CONNECTOR_ENABLED: Joi.boolean().default(false),
   MAGALU_CONNECTOR_ENABLED: Joi.boolean().default(false),

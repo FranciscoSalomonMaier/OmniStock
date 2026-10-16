@@ -267,7 +267,7 @@ export class MercadoLivreConnector implements MarketplaceConnector {
         'O conector do Mercado Livre não está configurado.',
       );
   }
-  private mapProducts(item: MercadoLivreItem): ExternalProduct[] {
+  mapProducts(item: MercadoLivreItem): ExternalProduct[] {
     const sku =
       item.seller_custom_field ??
       item.attributes?.find((x) => x.id === 'SELLER_SKU')?.value_name ??

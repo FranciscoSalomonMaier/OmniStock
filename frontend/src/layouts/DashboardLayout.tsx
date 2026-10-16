@@ -12,7 +12,7 @@ const menu = [
   ['Pedidos', [['#', 'Todos os pedidos', '/orders', true], ['!', 'Pendências', '/orders/issues', true]]],
   ['Minha conta', [['●', 'Perfil', '/profile', false], ['⌁', 'Alterar senha', '/profile/password', false]]],
 ] as const
-const menuWithIntegrations = [...menu.slice(0, -1), ['Integrações', [['⇄', 'Canais de venda', '/integrations', true], ['⇆', 'Vinculação de anúncios', '/marketplace-links', true]]] as const, menu[menu.length - 1]] as const
+const menuWithIntegrations = [...menu.slice(0, -1), ['Integrações', [['⇄', 'Canais de venda', '/integrations', true], ['⇆', 'Vinculação de anúncios', '/marketplace-links', true], ['↳', 'Notificações', '/integrations/webhooks', true]]] as const, menu[menu.length - 1]] as const
 const stockWriteLabels=new Set(['Nova entrada','Nova saída','Ajustar estoque'])
 
 export function DashboardLayout() {

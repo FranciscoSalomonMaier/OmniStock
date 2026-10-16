@@ -1,3 +1,4 @@
+import { preserveImportedProgress } from './imported-statuses';
 import { Injectable } from '@nestjs/common';
 import { DataSource, EntityManager, IsNull } from 'typeorm';
 import type { ExternalOrder } from '../marketplace-connectors/core/marketplace-types';
@@ -150,6 +151,8 @@ export class OrderImportService {
           source: OrderSource.MARKETPLACE,
           createdByUserId: null,
         });
+      if (previous)
+        Object.assign(mapped, preserveImportedProgress(order, mapped));
       Object.assign(order, {
         salesChannelId: connection.salesChannelId,
         salesChannelConnectionId: connection.id,
@@ -364,7 +367,14 @@ export class OrderImportService {
       });
     const shipmentId =
       typeof e.metadata.shipmentId === 'string' ? e.metadata.shipmentId : null;
-    if (shipmentId)
+    if (
+      shipmentId &&
+      !(await m.getRepository(OrderShipment).existsBy({
+        companyId: o.companyId,
+        orderId: o.id,
+        externalShipmentId: shipmentId,
+      }))
+    )
       await m.getRepository(OrderShipment).save({
         companyId: o.companyId,
         orderId: o.id,
@@ -382,7 +392,7 @@ export class OrderImportService {
         shippedAt: null,
         deliveredAt: null,
         returnedAt: null,
-        externalUpdatedAt: e.updatedAt,
+        externalUpdatedAt: null,
       });
     await m.getRepository(OrderFiscalData).upsert(
       {

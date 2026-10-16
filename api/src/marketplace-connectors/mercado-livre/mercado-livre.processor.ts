@@ -176,7 +176,7 @@ export class MercadoLivreProcessor extends WorkerHost {
       pages++;
     } while (cursor && pages < 100);
   }
-  private async upsertListing(
+  async upsertListing(
     connection: SalesChannelConnection,
     item: ExternalProduct,
   ) {

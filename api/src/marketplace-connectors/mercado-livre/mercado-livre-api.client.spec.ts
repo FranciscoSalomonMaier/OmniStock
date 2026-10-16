@@ -1,3 +1,4 @@
+import { withProviderDeadline } from '../core/provider-request-budget';
 import { ConfigService } from '@nestjs/config';
 import { MercadoLivreApiClient } from './mercado-livre-api.client';
 
@@ -56,5 +57,28 @@ describe('MercadoLivreApiClient provider errors', () => {
       providerStatus: 401,
       retryable: false,
     });
+  });
+  it('delegates 429 retries to the durable webhook worker and preserves Retry-After', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ error: 'rate_limit' }), {
+        status: 429,
+        headers: { 'retry-after': '3' },
+      }),
+    );
+    await expect(
+      withProviderDeadline(Date.now() + 30000, () =>
+        client.getCurrentUser('private-token'),
+      ),
+    ).rejects.toMatchObject({ code: 'RATE_LIMITED', retryAfterSeconds: 3 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+  it('does not call the provider after an expired processing budget', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch');
+    await expect(
+      withProviderDeadline(Date.now() - 1, () =>
+        client.getCurrentUser('private-token'),
+      ),
+    ).rejects.toMatchObject({ code: 'PROVIDER_TIMEOUT' });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

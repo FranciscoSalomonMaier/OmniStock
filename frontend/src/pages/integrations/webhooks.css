@@ -1,0 +1,56 @@
+.webhook-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.webhook-table th {
+  text-align: left;
+  color: #64748b;
+  background: #f8fafc;
+  padding: 0.85rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+.webhook-table td {
+  padding: 0.85rem;
+  border-top: 1px solid #e2e8f0;
+  vertical-align: top;
+  min-width: 100px;
+  overflow-wrap: anywhere;
+}
+.webhook-table small {
+  color: #64748b;
+}
+.webhook-table td:last-child {
+  min-width: 165px;
+}
+.webhook-table td:last-child button {
+  margin-bottom: 0.4rem;
+}
+.ml-toolbar > select {
+  min-height: 44px;
+  padding: 0.7rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #fff;
+}
+.ml-toolbar > label:not(.ml-search):has(input[type="datetime-local"]) {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+.ml-toolbar input[type="datetime-local"] {
+  padding: 0.6rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  min-height: 44px;
+  box-sizing: border-box;
+  background: #fff;
+}
+.webhook-error-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}

@@ -1,3 +1,7 @@
+import 'dotenv/config';
+import { WebhookPublicExceptionFilter } from './marketplace-connectors/webhooks/webhook-public-exception.filter';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { json } from 'express';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -10,9 +14,28 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bodyParser: false,
+    rawBody: true,
+  });
   const config = app.get(ConfigService);
   app.setGlobalPrefix('api');
+  app.useGlobalFilters(new WebhookPublicExceptionFilter(app.getHttpAdapter()));
+  const server = app.getHttpServer();
+  server.requestTimeout = 30000;
+  server.headersTimeout = 30000;
+  app.use(
+    '/api/webhooks',
+    json({
+      limit: config.get<string>('MARKETPLACE_WEBHOOK_MAX_BODY_SIZE', '256kb'),
+      verify: (req, _res, buffer) => {
+        (req as typeof req & { rawBody?: Buffer }).rawBody =
+          Buffer.from(buffer);
+      },
+    }),
+  );
+  app.useBodyParser('json');
+  app.useBodyParser('urlencoded', { extended: true });
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({

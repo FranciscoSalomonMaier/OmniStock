@@ -1,3 +1,4 @@
+import { WebhooksPage } from '../pages/integrations/WebhooksPage';
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { CompanyRequiredRoute } from "../components/company/CompanyRequiredRoute";
@@ -98,6 +99,7 @@ export function AppRoutes() {
               element={<InventoryProductPage />}
             />
             <Route path="/integrations" element={<IntegrationsPage />} />
+            <Route path="/integrations/webhooks" element={<WebhooksPage />} />
             <Route path="/orders" element={<OrdersPage />} />
             <Route path="/orders/issues" element={<OrdersPage issuesOnly />} />
             <Route path="/orders/:id" element={<OrderDetailsPage />} />

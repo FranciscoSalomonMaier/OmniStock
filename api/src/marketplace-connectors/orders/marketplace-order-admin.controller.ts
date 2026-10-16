@@ -1,3 +1,4 @@
+import { MarketplaceWebhookService } from '../webhooks/marketplace-webhook.service';
 import {
   Controller,
   Get,
@@ -33,6 +34,7 @@ export class MarketplaceOrderAdminController {
     @InjectRepository(MarketplaceWebhookEvent)
     private events: Repository<MarketplaceWebhookEvent>,
     private queue: MarketplaceOrderQueueService,
+    private webhooks: MarketplaceWebhookService,
   ) {}
   @Get('marketplace-webhook-events') list(
     @CurrentMembership() m: CompanyMember,
@@ -53,17 +55,9 @@ export class MarketplaceOrderAdminController {
     @CurrentUser() u: { id: string },
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    const e = await this.events.findOneBy({ id, companyId: m.companyId });
-    if (!e?.marketplaceAccountId || !e.externalOrderId)
-      throw new NotFoundException('Evento não encontrado ou não processável.');
-    return this.queue.enqueueOrder(
-      m.companyId,
-      e.marketplaceAccountId,
-      e.externalOrderId,
-      'MANUAL',
-      { webhookEventId: e.id, requestedByUserId: u.id },
-    );
+    return this.webhooks.action(m.companyId, id, u.id, 'retry');
   }
+
   @Post('marketplace-accounts/:id/sync-orders')
   @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER)
   sync(

@@ -18,11 +18,11 @@ export enum MarketplaceWebhookEventStatus {
   DEAD_LETTER = 'DEAD_LETTER',
 }
 @Entity('marketplace_webhook_events')
-@Index(['marketplace', 'externalEventId'], {
+@Index(['marketplace', 'externalAccountId', 'externalEventId'], {
   unique: true,
   where: '"external_event_id" IS NOT NULL',
 })
-@Index(['marketplace', 'payloadHash'], { unique: true })
+@Index(['marketplace', 'externalAccountId', 'payloadHash'], { unique: true })
 export class MarketplaceWebhookEvent {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ name: 'company_id', type: 'uuid', nullable: true }) companyId:
@@ -63,6 +63,58 @@ export class MarketplaceWebhookEvent {
   failedAt: Date | null;
   @Column({ name: 'last_error', type: 'varchar', length: 500, nullable: true })
   lastError: string | null;
+  @Column({ name: 'external_account_id', type: 'varchar', length: 80 })
+  externalAccountId: string;
+  @Column({ type: 'varchar', length: 80, nullable: true }) topic: string | null;
+  @Column({
+    name: 'external_resource_id',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  externalResourceId: string | null;
+  @Column({
+    name: 'external_product_id',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  externalProductId: string | null;
+  @Column({
+    name: 'external_shipment_id',
+    type: 'varchar',
+    length: 100,
+    nullable: true,
+  })
+  externalShipmentId: string | null;
+  @Column({ name: 'headers_metadata', type: 'jsonb', default: {} })
+  headersMetadata: Record<string, unknown>;
+  @Column({ name: 'correlation_id', type: 'uuid' }) correlationId: string;
+  @Column({ name: 'occurred_at', type: 'timestamptz', nullable: true })
+  occurredAt: Date | null;
+  @Column({
+    name: 'processing_started_at',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  processingStartedAt: Date | null;
+  @Column({ name: 'next_retry_at', type: 'timestamptz', nullable: true })
+  nextRetryAt: Date | null;
+  @Column({
+    name: 'last_error_code',
+    type: 'varchar',
+    length: 80,
+    nullable: true,
+  })
+  lastErrorCode: string | null;
+  @Column({ name: 'duplicate_count', type: 'integer', default: 0 })
+  duplicateCount: number;
+  @Column({ name: 'queue_generation', type: 'integer', default: 0 })
+  queueGeneration: number;
+  @Column({ name: 'admin_actions', type: 'jsonb', default: [] })
+  adminActions: Array<Record<string, unknown>>;
+  @Column({ name: 'processing_result', type: 'jsonb', nullable: true })
+  processingResult: Record<string, unknown> | null;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })

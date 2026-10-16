@@ -354,3 +354,11 @@ Todos os perfis podem consultar. Cancelamento exige `ADMIN`, `MANAGER` ou `BILLI
 Execute `npm run migration:run` na API após atualizar. Para validar: `npm test`, `npm run lint` e `npm run build` na API; `npm run lint` e `npm run build` no frontend.
 
 Limitações desta etapa: não há criação manual de pedidos, emissão de NF-e nem cálculo tributário; o conector atual recebe dados limitados de cliente, endereço, pagamento, comissão e envio do endpoint de pedidos do Mercado Livre. Importar ou cancelar pedidos não cria reservas, baixas ou estornos. A próxima etapa deverá integrar o ciclo do pedido exclusivamente pelo `InventoryService`, com idempotência transacional.
+
+## Etapa 14 — webhooks confiáveis
+
+A recepção do Mercado Livre agora persiste uma intenção durável no PostgreSQL antes de responder HTTP 200. O publicador recuperável envia IDs para `marketplace-webhook-processing`; pedidos reutilizam o importador existente. Há handlers para pedidos, pagamentos, envios, anúncios e `stock-location`, com prevenção de regressão e de loops de estoque, cooldown por conta, retry e dead-letter persistidos.
+
+Administração: `/integrations/webhooks` no frontend e `/api/marketplace-webhooks` na API, com JWT e empresa ativa. A migration `1800000000200-EvolveMarketplaceWebhooks` precisa ser aplicada no ambiente de desenvolvimento antes de ativar esta versão. Não há emissão fiscal nem baixa definitiva automática por pagamento.
+
+Consulte [a documentação da etapa 14](docs/marketplace-webhooks.md) para configuração, endpoints, segurança, testes e limitações. Algumas descrições das etapas anteriores neste README são históricas; as regras atuais de kits, reservas e baixas estão em `IMPLEMENTACAO_KITS_RESULTADO.md` e no código.

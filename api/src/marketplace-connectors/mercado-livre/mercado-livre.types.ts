@@ -74,6 +74,13 @@ export interface MercadoLivreOrder {
   }>;
 }
 export interface MercadoLivreShipment {
+  last_updated?: string;
+  status_history?: {
+    date_shipped?: string;
+    date_delivered?: string;
+    date_returned?: string;
+  };
+  order_id?: number;
   id: number;
   status: string;
   substatus?: string;

@@ -1,3 +1,14 @@
+import { MarketplaceWebhookDispatcher } from '../marketplace-connectors/webhooks/marketplace-webhook.dispatcher';
+import { MarketplaceWebhookService } from '../marketplace-connectors/webhooks/marketplace-webhook.service';
+import { MercadoLivreWebhookAdapter } from '../marketplace-connectors/webhooks/mercado-livre-webhook.adapter';
+import { MercadoLivreWebhookDispatcher } from '../marketplace-connectors/webhooks/mercado-livre-webhook.dispatcher';
+import {
+  MarketplaceWebhookWorker,
+  MarketplaceWebhookPublisher,
+} from '../marketplace-connectors/webhooks/marketplace-webhook.worker';
+import { MarketplaceWebhookAdminController } from '../marketplace-connectors/webhooks/marketplace-webhook-admin.controller';
+import { WEBHOOK_QUEUE } from '../marketplace-connectors/webhooks/webhook.contracts';
+import { ProductBundlesModule } from '../product_bundles/product_bundles.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
@@ -71,6 +82,8 @@ import { MarketplaceOrderAdminController } from '../marketplace-connectors/order
     ]),
     CompaniesModule,
     OrdersModule,
+    ProductBundlesModule,
+    BullModule.registerQueue({ name: WEBHOOK_QUEUE }),
     BullModule.registerQueue({ name: MERCADO_LIVRE_QUEUE }),
     BullModule.registerQueue(
       { name: MARKETPLACE_ORDER_IMPORT_QUEUE },
@@ -84,6 +97,7 @@ import { MarketplaceOrderAdminController } from '../marketplace-connectors/order
     MercadoLivreController,
     MercadoLivreWebhookController,
     MarketplaceOrderAdminController,
+    MarketplaceWebhookAdminController,
   ],
   providers: [
     SalesChannelsService,
@@ -98,6 +112,12 @@ import { MarketplaceOrderAdminController } from '../marketplace-connectors/order
     MercadoLivreSyncService,
     MercadoLivreProcessor,
     MercadoLivreWebhookService,
+    MarketplaceWebhookService,
+    MercadoLivreWebhookAdapter,
+    MercadoLivreWebhookDispatcher,
+    MarketplaceWebhookDispatcher,
+    MarketplaceWebhookWorker,
+    MarketplaceWebhookPublisher,
     MercadoLivreOperationsService,
     ShopeeConnector,
     AmazonConnector,
