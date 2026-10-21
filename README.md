@@ -362,3 +362,9 @@ A recepção do Mercado Livre agora persiste uma intenção durável no PostgreS
 Administração: `/integrations/webhooks` no frontend e `/api/marketplace-webhooks` na API, com JWT e empresa ativa. A migration `1800000000200-EvolveMarketplaceWebhooks` precisa ser aplicada no ambiente de desenvolvimento antes de ativar esta versão. Não há emissão fiscal nem baixa definitiva automática por pagamento.
 
 Consulte [a documentação da etapa 14](docs/marketplace-webhooks.md) para configuração, endpoints, segurança, testes e limitações. Algumas descrições das etapas anteriores neste README são históricas; as regras atuais de kits, reservas e baixas estão em `IMPLEMENTACAO_KITS_RESULTADO.md` e no código.
+
+### Módulo fiscal (etapa 15)
+
+Cadastros de estabelecimentos, configurações de NF-e por ambiente/série, perfis fiscais versionados de produtos e kits, regras tributárias, revisão contábil, auditoria e prontidão técnica em `/fiscal`. Não emite notas nem consome numeração. Dados fiscais legados são preservados. Migration: `1800000000300-CreateFiscalModule` (requer `btree_gist`). Permissões efetivas por empresa e usuário, complementando os papéis existentes.
+
+Consulte [documentação fiscal](docs/fiscal-module.md) para endpoints, política de numeração, fontes oficiais, limitações de validação, ativação e testes isolados (`npm run test:fiscal:integration`). Classificações e configurações tributárias exigem revisão do contador; prontidão técnica não é garantia de conformidade fiscal.

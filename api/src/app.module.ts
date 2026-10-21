@@ -1,3 +1,4 @@
+import { FiscalModule } from './fiscal/fiscal.module';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -42,6 +43,7 @@ import { ProductBundleComponentsModule } from './product_bundle_components/produ
         },
       }),
     }),
+    FiscalModule,
     UsersModule,
     AuthModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 120 }]),

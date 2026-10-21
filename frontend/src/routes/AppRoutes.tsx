@@ -1,4 +1,5 @@
-import { WebhooksPage } from '../pages/integrations/WebhooksPage';
+import { FiscalPage } from "../pages/fiscal/FiscalPage";
+import { WebhooksPage } from "../pages/integrations/WebhooksPage";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ProtectedRoute } from "../components/auth/ProtectedRoute";
 import { CompanyRequiredRoute } from "../components/company/CompanyRequiredRoute";
@@ -66,6 +67,7 @@ export function AppRoutes() {
           <Route element={<CompanyRequiredRoute />}>
             <Route path="/settings/company" element={<CompanySettingsPage />} />
             <Route path="/settings/company/members" element={<MembersPage />} />
+            <Route path="/fiscal/*" element={<FiscalPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/new" element={<ProductFormPage />} />
             <Route path="/products/:id" element={<ProductDetailsPage />} />
@@ -107,11 +109,26 @@ export function AppRoutes() {
             <Route path="/orders/:id/issues" element={<OrderDetailsPage />} />
             <Route path="/orders/:id/shipping" element={<OrderDetailsPage />} />
             <Route path="/orders/:id/fiscal" element={<OrderDetailsPage />} />
-            <Route path="/marketplace-links" element={<MarketplaceLinksPage />} />
-            <Route path="/marketplace-links/unlinked" element={<UnlinkedMarketplaceListingsPage />} />
-            <Route path="/marketplace-links/suggestions" element={<UnlinkedMarketplaceListingsPage suggestionsOnly />} />
-            <Route path="/products/:id/marketplace-links" element={<ProductMarketplaceLinksPage />} />
-            <Route path="/integrations/:connectionId/listings/unlinked" element={<UnlinkedMarketplaceListingsPage />} />
+            <Route
+              path="/marketplace-links"
+              element={<MarketplaceLinksPage />}
+            />
+            <Route
+              path="/marketplace-links/unlinked"
+              element={<UnlinkedMarketplaceListingsPage />}
+            />
+            <Route
+              path="/marketplace-links/suggestions"
+              element={<UnlinkedMarketplaceListingsPage suggestionsOnly />}
+            />
+            <Route
+              path="/products/:id/marketplace-links"
+              element={<ProductMarketplaceLinksPage />}
+            />
+            <Route
+              path="/integrations/:connectionId/listings/unlinked"
+              element={<UnlinkedMarketplaceListingsPage />}
+            />
             <Route
               path="/integrations/:id"
               element={<IntegrationDetailsPage />}

@@ -1,4 +1,5 @@
-import { BundleEditor } from '../../components/products/BundleEditor';
+import { FiscalProductEditor } from "../fiscal/FiscalProductEditor";
+import { BundleEditor } from "../../components/products/BundleEditor";
 import {
   useCallback,
   useEffect,
@@ -11,7 +12,7 @@ import { ErrorDialog } from "../../components/feedback/ErrorDialog";
 import { ApiError } from "../../services/api";
 import { productService } from "../../services/product.service";
 import type { Category } from "../../types/product";
-import '../inventory/inventory.css';
+import "../inventory/inventory.css";
 const initial = {
   sku: "",
   name: "",
@@ -35,7 +36,13 @@ const initial = {
 type Form = typeof initial;
 type Field = keyof Form;
 type Errors = Partial<Record<Field, string>>;
-const numericRules:Partial<Record<Field,RegExp>>={costPrice:/^\d{1,13}(\.\d{1,2})?$/,weight:/^\d{1,9}(\.\d{1,3})?$/,height:/^\d{1,10}(\.\d{1,2})?$/,width:/^\d{1,10}(\.\d{1,2})?$/,length:/^\d{1,10}(\.\d{1,2})?$/};
+const numericRules: Partial<Record<Field, RegExp>> = {
+  costPrice: /^\d{1,13}(\.\d{1,2})?$/,
+  weight: /^\d{1,9}(\.\d{1,3})?$/,
+  height: /^\d{1,10}(\.\d{1,2})?$/,
+  width: /^\d{1,10}(\.\d{1,2})?$/,
+  length: /^\d{1,10}(\.\d{1,2})?$/,
+};
 function barcodeValid(value: string) {
   if (!/^\d{8}$|^\d{12,14}$/.test(value)) return false;
   if (![8, 13].includes(value.length)) return true;
@@ -334,7 +341,13 @@ export function ProductFormPage() {
           {input("salePrice", "Preço de venda *", "number")}
         </fieldset>
         <fieldset>
-          <legend>Informações fiscais</legend>
+          <legend>Informações fiscais básicas (legado)</legend>
+          {id && (
+            <p>
+              O perfil fiscal versionado é administrado na seção Fiscal abaixo.
+              Estes campos preservam o cadastro original.
+            </p>
+          )}
           {input("ncm", "NCM (8 dígitos)")}
           {input("cest", "CEST (7 dígitos)")}
           {input("defaultCfop", "CFOP padrão (4 dígitos)")}
@@ -389,7 +402,8 @@ export function ProductFormPage() {
           <Link to="/products">Cancelar</Link>
         </div>
       </form>
-      {id && <BundleEditor key={id} productId={id}/>}
+      {id && <FiscalProductEditor productId={id} />}
+      {id && <BundleEditor key={id} productId={id} />}
       <ErrorDialog
         open={Boolean(dialog)}
         title={
