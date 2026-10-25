@@ -1,3 +1,4 @@
+import { configureHttpSecurity } from './config/http-security';
 import 'dotenv/config';
 import { WebhookPublicExceptionFilter } from './marketplace-connectors/webhooks/webhook-public-exception.filter';
 import { NestExpressApplication } from '@nestjs/platform-express';
@@ -20,6 +21,8 @@ async function bootstrap() {
   });
   const config = app.get(ConfigService);
   app.setGlobalPrefix('api');
+  configureHttpSecurity(app, config);
+  app.enableShutdownHooks();
   app.useGlobalFilters(new WebhookPublicExceptionFilter(app.getHttpAdapter()));
   const server = app.getHttpServer();
   server.requestTimeout = 30000;
@@ -64,17 +67,19 @@ async function bootstrap() {
     origin: config.getOrThrow<string>('FRONTEND_URL'),
     credentials: true,
   });
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('OmniStock API')
-    .setDescription('OmniStock API documentation')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .build();
-  SwaggerModule.setup(
-    'api/docs',
-    app,
-    SwaggerModule.createDocument(app, swaggerConfig),
-  );
+  if (config.get<boolean>('SWAGGER_ENABLED')) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('OmniStock API')
+      .setDescription('OmniStock API documentation')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    SwaggerModule.setup(
+      'api/docs',
+      app,
+      SwaggerModule.createDocument(app, swaggerConfig),
+    );
+  }
   await app.listen(config.getOrThrow<number>('PORT'));
 }
 void bootstrap();

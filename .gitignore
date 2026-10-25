@@ -1,4 +1,18 @@
+# Environment and credentials, including deployment files.
 .env
-api/.env
-frontend/.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+!.env.*.example
+!**/.env.example
+!**/.env.*.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+*.dump
+*.sql.gz
+*.tar.gz
 *.txt

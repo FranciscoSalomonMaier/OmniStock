@@ -133,6 +133,80 @@ export class UsersService {
     await this.users.update(id, { refreshTokenHash: hash });
   }
 
+  async startRefreshSession(
+    id: string,
+    passwordHash: string,
+    digest: string,
+  ): Promise<boolean> {
+    const result = await this.users
+      .createQueryBuilder()
+      .update(User)
+      .set({ refreshTokenHash: digest })
+      .where(
+        'id=:id AND password_hash=:passwordHash AND is_active=true AND email_verified_at IS NOT NULL',
+        { id, passwordHash },
+      )
+      .execute();
+    return result.affected === 1;
+  }
+
+  async rotateRefreshToken(
+    id: string,
+    expectedDigest: string,
+    newDigest: string | null,
+  ): Promise<boolean> {
+    const result = await this.users
+      .createQueryBuilder()
+      .update(User)
+      .set({ refreshTokenHash: newDigest })
+      .where(
+        'id=:id AND refresh_token_hash=:expectedDigest AND is_active=true',
+        { id, expectedDigest },
+      )
+      .execute();
+    return result.affected === 1;
+  }
+
+  async consumeVerification(id: string, digest: string): Promise<boolean> {
+    const result = await this.users
+      .createQueryBuilder()
+      .update(User)
+      .set({
+        emailVerifiedAt: new Date(),
+        emailVerificationTokenHash: null,
+        emailVerificationExpiresAt: null,
+      })
+      .where(
+        'id=:id AND email_verification_token_hash=:digest AND email_verification_expires_at>:now AND is_active=true',
+        { id, digest, now: new Date() },
+      )
+      .execute();
+    return result.affected === 1;
+  }
+
+  async consumePasswordReset(
+    id: string,
+    digest: string,
+    passwordHash: string,
+  ): Promise<boolean> {
+    const result = await this.users
+      .createQueryBuilder()
+      .update(User)
+      .set({
+        passwordHash,
+        passwordChangedAt: new Date(),
+        refreshTokenHash: null,
+        passwordResetTokenHash: null,
+        passwordResetExpiresAt: null,
+      })
+      .where(
+        'id=:id AND password_reset_token_hash=:digest AND password_reset_expires_at>:now AND is_active=true',
+        { id, digest, now: new Date() },
+      )
+      .execute();
+    return result.affected === 1;
+  }
+
   toPublic(user: User): PublicUser {
     const { id, name, email, role, isActive, createdAt } = user;
     return { id, name, email, role, isActive, createdAt };

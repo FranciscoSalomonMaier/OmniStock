@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.git
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+uploads
+test
+*.txt
+.npmrc

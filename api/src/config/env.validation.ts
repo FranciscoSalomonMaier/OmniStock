@@ -3,7 +3,29 @@ import * as Joi from 'joi';
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'test', 'production').required(),
   PORT: Joi.number().port().required(),
-  FRONTEND_URL: Joi.string().uri().required(),
+  FRONTEND_URL: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: Joi.string()
+      .uri({ scheme: ['https'] })
+      .custom((value: string, helpers) => {
+        const u = new URL(value);
+        return u.pathname !== '/' ||
+          u.search ||
+          u.hash ||
+          u.username ||
+          u.password
+          ? helpers.error('any.invalid')
+          : value;
+      })
+      .required(),
+    otherwise: Joi.string().uri().required(),
+  }),
+  TRUST_PROXY_HOPS: Joi.number().integer().min(0).max(5).default(0),
+  SWAGGER_ENABLED: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: Joi.boolean().valid(false).default(false),
+    otherwise: Joi.boolean().default(true),
+  }),
   DB_HOST: Joi.string().required(),
   DB_PORT: Joi.number().port().required(),
   DB_NAME: Joi.string().required(),
@@ -23,6 +45,11 @@ export const envValidationSchema = Joi.object({
   SMTP_HOST: Joi.string().required(),
   SMTP_PORT: Joi.number().port().required(),
   SMTP_SECURE: Joi.boolean().required(),
+  SMTP_REQUIRE_TLS: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: Joi.boolean().valid(true).default(true),
+    otherwise: Joi.boolean().default(false),
+  }),
   SMTP_USER: Joi.string().allow('').optional(),
   SMTP_PASSWORD: Joi.string().allow('').optional(),
   SMTP_FROM_NAME: Joi.string().required(),
@@ -42,7 +69,18 @@ export const envValidationSchema = Joi.object({
   UPLOAD_DIR: Joi.string().default('uploads'),
   REDIS_HOST: Joi.string().required(),
   REDIS_PORT: Joi.number().port().required(),
-  MARKETPLACE_TOKEN_ENCRYPTION_KEY: Joi.string().base64().optional(),
+  MARKETPLACE_TOKEN_ENCRYPTION_KEY: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: Joi.string()
+      .base64()
+      .custom((value: string, helpers) =>
+        Buffer.from(value, 'base64').length === 32
+          ? value
+          : helpers.error('any.invalid'),
+      )
+      .required(),
+    otherwise: Joi.string().base64().optional(),
+  }),
   MARKETPLACE_TOKEN_ENCRYPTION_KEY_VERSION: Joi.string().default('v1'),
   MERCADO_LIVRE_CONNECTOR_ENABLED: Joi.boolean().default(false),
   MERCADO_LIVRE_CLIENT_ID: Joi.when('MERCADO_LIVRE_CONNECTOR_ENABLED', {
@@ -57,7 +95,18 @@ export const envValidationSchema = Joi.object({
   }),
   MERCADO_LIVRE_REDIRECT_URI: Joi.when('MERCADO_LIVRE_CONNECTOR_ENABLED', {
     is: true,
-    then: Joi.string().uri().required(),
+    then: Joi.string()
+      .uri()
+      .custom((value: string, helpers) => {
+        const env = (helpers.state.ancestors as unknown[])[0] as {
+          NODE_ENV?: string;
+        };
+        return env.NODE_ENV === 'production' &&
+          new URL(value).protocol !== 'https:'
+          ? helpers.error('any.invalid')
+          : value;
+      })
+      .required(),
     otherwise: Joi.string().allow('').optional(),
   }),
   MERCADO_LIVRE_AUTH_BASE_URL: Joi.string()

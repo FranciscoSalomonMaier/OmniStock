@@ -1,0 +1,40 @@
+{
+    email {$ACME_EMAIL}
+    admin off
+    # Error logs also carry requests; remove the request object entirely.
+    log default {
+        format filter {
+            wrap json
+            fields {
+                request delete
+            }
+        }
+    }
+    # Access logging is intentionally disabled: callback/reset URLs carry tokens.
+}
+
+{$APP_DOMAIN} {
+    encode zstd gzip
+    request_body {
+        max_size 12MB
+    }
+    header {
+        -Server
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+        Permissions-Policy "camera=(), microphone=(), geolocation=()"
+        Strict-Transport-Security "max-age=86400"
+        Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    }
+    # Always block documentation at the public boundary, including raw schemas.
+    @docs path /api/docs /api/docs/* /api/docs-json /api/docs-yaml
+    respond @docs 404
+    @api path /api /api/*
+    handle @api {
+        reverse_proxy api:3000
+    }
+    handle {
+        reverse_proxy frontend:80
+    }
+}

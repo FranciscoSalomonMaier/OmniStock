@@ -1,0 +1,203 @@
+name: omni-production
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-api: &api
+  image: omni-api:${IMAGE_TAG:-local}
+  build:
+    context: ./api
+
+  env_file:
+    - .env.production
+
+  environment:
+    NODE_ENV: production
+    TZ: UTC
+    TRUST_PROXY_HOPS: "1"
+    SWAGGER_ENABLED: "false"
+    PORT: 3000
+    FRONTEND_URL: https://${APP_DOMAIN:?Defina APP_DOMAIN}
+
+    DB_HOST: postgres
+    DB_PORT: 5432
+    DB_NAME: ${POSTGRES_DB:-omni}
+    DB_USER: ${POSTGRES_USER:-omni}
+    DB_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+    DB_LOGGING: "false"
+
+    REDIS_HOST: redis
+    REDIS_PORT: 6379
+
+    UPLOAD_DIR: /app/uploads
+    SMTP_HOST: ${SMTP_HOST:?Defina SMTP_HOST}
+    SMTP_PORT: ${SMTP_PORT:-587}
+    SMTP_SECURE: ${SMTP_SECURE:-false}
+    SMTP_REQUIRE_TLS: ${SMTP_REQUIRE_TLS:-true}
+    SMTP_FROM_NAME: ${SMTP_FROM_NAME:-OmniStock}
+    SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:?Defina SMTP_FROM_EMAIL}
+    EMAIL_VERIFICATION_EXPIRES_IN_MINUTES: ${EMAIL_VERIFICATION_EXPIRES_IN_MINUTES:-30}
+
+    JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?Defina JWT_ACCESS_SECRET}
+    JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Defina JWT_REFRESH_SECRET}
+
+    MARKETPLACE_TOKEN_ENCRYPTION_KEY: ${MARKETPLACE_TOKEN_ENCRYPTION_KEY:?Defina a chave de criptografia}
+
+  logging: *logging
+  networks:
+    - private
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-omni}
+      POSTGRES_USER: ${POSTGRES_USER:-omni}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD}
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+    logging: *logging
+    networks:
+      - private
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - noeviction
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+    logging: *logging
+    networks:
+      - private
+
+  migrate:
+    <<: *api
+    profiles:
+      - tools
+    command: ["npm", "run", "migration:run:prod"]
+    restart: "no"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *api
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 60s
+    security_opt:
+      - no-new-privileges:true
+
+    volumes:
+      - uploads:/app/uploads
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - 'fetch("http://127.0.0.1:3000/api/health").then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))'
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  frontend:
+    image: omni-frontend:${IMAGE_TAG:-local}
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: /api
+
+    restart: unless-stopped
+
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://127.0.0.1/healthz
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+    logging: *logging
+    networks:
+      - private
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Defina APP_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Defina ACME_EMAIL}
+
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+    depends_on:
+      api:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+    logging: *logging
+    networks:
+      - private
+
+networks:
+  private:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+  caddy_data:
+  caddy_config:

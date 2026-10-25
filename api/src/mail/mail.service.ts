@@ -16,6 +16,7 @@ export class MailService {
       host: config.getOrThrow('SMTP_HOST'),
       port: config.getOrThrow('SMTP_PORT'),
       secure: config.getOrThrow('SMTP_SECURE'),
+      requireTLS: config.get<boolean>('SMTP_REQUIRE_TLS') ?? false,
       auth: user && password ? { user, pass: password } : undefined,
     });
   }

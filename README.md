@@ -368,3 +368,7 @@ Consulte [a documentação da etapa 14](docs/marketplace-webhooks.md) para confi
 Cadastros de estabelecimentos, configurações de NF-e por ambiente/série, perfis fiscais versionados de produtos e kits, regras tributárias, revisão contábil, auditoria e prontidão técnica em `/fiscal`. Não emite notas nem consome numeração. Dados fiscais legados são preservados. Migration: `1800000000300-CreateFiscalModule` (requer `btree_gist`). Permissões efetivas por empresa e usuário, complementando os papéis existentes.
 
 Consulte [documentação fiscal](docs/fiscal-module.md) para endpoints, política de numeração, fontes oficiais, limitações de validação, ativação e testes isolados (`npm run test:fiscal:integration`). Classificações e configurações tributárias exigem revisão do contador; prontidão técnica não é garantia de conformidade fiscal.
+
+### Implantação em VPS Hostinger
+
+Arquivos de produção e roteiro de configuração/migrations: [deploy/HOSTINGER.md](deploy/HOSTINGER.md). Use `deploy/compose.sh` para selecionar explicitamente o ambiente de produção. Não versione `.env.production`; use os templates seguros e preserve a chave de criptografia de um banco existente. Nenhum deploy é executado automaticamente.

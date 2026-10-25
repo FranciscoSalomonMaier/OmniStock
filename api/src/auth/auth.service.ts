@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcrypt';
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'crypto';
 import { UserRole } from '../common/enums/user-role.enum';
 import { MailService } from '../mail/mail.service';
 import { PublicUser, UsersService } from '../users/users.service';
@@ -109,7 +109,16 @@ export class AuthService {
       throw new UnauthorizedException(
         'O link de redefinição é inválido ou expirou.',
       );
-    await this.users.changePassword(user.id, await hash(password, 12));
+    if (
+      !(await this.users.consumePasswordReset(
+        user.id,
+        this.hashToken(token),
+        await hash(password, 12),
+      ))
+    )
+      throw new UnauthorizedException(
+        'O link de redefinição é inválido ou expirou.',
+      );
     return { message: 'Senha redefinida com sucesso. Você já pode entrar.' };
   }
 
@@ -136,7 +145,10 @@ export class AuthService {
       throw new UnauthorizedException(
         'O link de confirmação é inválido ou expirou.',
       );
-    await this.users.confirmEmail(user.id);
+    if (!(await this.users.consumeVerification(user.id, tokenHash)))
+      throw new UnauthorizedException(
+        'O link de confirmação é inválido ou expirou.',
+      );
     return {
       message:
         'E-mail confirmado com sucesso. Você já pode entrar no OmniStock.',
@@ -169,11 +181,11 @@ export class AuthService {
       if (
         !user ||
         !user.refreshTokenHash ||
-        !(await compare(refreshToken, user.refreshTokenHash))
+        !this.matchesRefreshToken(refreshToken, user.refreshTokenHash)
       )
         throw new Error('invalid session');
       if (!user.isActive) throw new ForbiddenException('Usuário inativo');
-      return this.issueSession(user);
+      return await this.issueSession(user, this.hashToken(refreshToken));
     } catch (error) {
       if (error instanceof ForbiddenException) throw error;
       throw new UnauthorizedException('Sessão expirada');
@@ -186,12 +198,12 @@ export class AuthService {
       const payload = await this.jwt.verifyAsync<RefreshPayload>(refreshToken, {
         secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
       });
-      const user = await this.users.findByIdWithRefreshToken(payload.sub);
-      if (
-        user?.refreshTokenHash &&
-        (await compare(refreshToken, user.refreshTokenHash))
-      )
-        await this.users.setRefreshTokenHash(user.id, null);
+      if (payload.type === 'refresh')
+        await this.users.rotateRefreshToken(
+          payload.sub,
+          this.hashToken(refreshToken),
+          null,
+        );
     } catch {
       return;
     }
@@ -243,24 +255,52 @@ export class AuthService {
     return createHash('sha256').update(token).digest('hex');
   }
 
+  private matchesRefreshToken(token: string, digest: string): boolean {
+    // Old bcrypt session hashes deliberately fail closed: a new login is required.
+    if (!/^[a-f0-9]{64}$/.test(digest)) return false;
+    return timingSafeEqual(
+      Buffer.from(this.hashToken(token), 'hex'),
+      Buffer.from(digest, 'hex'),
+    );
+  }
+
   private async issueSession(
     user: Parameters<UsersService['toPublic']>[0],
+    expectedRefreshDigest?: string,
   ): Promise<AuthResult> {
     const accessToken = await this.jwt.signAsync(
-      { sub: user.id, email: user.email, role: user.role },
+      {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        passwordVersion: user.passwordChangedAt?.toISOString() ?? null,
+      },
       {
         secret: this.config.getOrThrow('JWT_ACCESS_SECRET'),
         expiresIn: this.config.getOrThrow('JWT_ACCESS_EXPIRES_IN'),
       },
     );
     const refreshToken = await this.jwt.signAsync(
-      { sub: user.id, type: 'refresh' },
+      { sub: user.id, type: 'refresh', jti: randomUUID() },
       {
         secret: this.config.getOrThrow('JWT_REFRESH_SECRET'),
         expiresIn: this.config.getOrThrow('JWT_REFRESH_EXPIRES_IN'),
       },
     );
-    await this.users.setRefreshTokenHash(user.id, await hash(refreshToken, 12));
+    const digest = this.hashToken(refreshToken);
+    const persisted =
+      expectedRefreshDigest !== undefined
+        ? await this.users.rotateRefreshToken(
+            user.id,
+            expectedRefreshDigest,
+            digest,
+          )
+        : await this.users.startRefreshSession(
+            user.id,
+            user.passwordHash,
+            digest,
+          );
+    if (!persisted) throw new UnauthorizedException('Sessão expirada');
     return { user: this.users.toPublic(user), accessToken, refreshToken };
   }
 }

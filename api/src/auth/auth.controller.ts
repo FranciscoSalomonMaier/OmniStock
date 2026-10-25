@@ -46,6 +46,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @Throttle({ default: { limit: 5, ttl: 900000 } })
   @ApiOperation({ summary: 'Cadastrar usuário e enviar confirmação' })
   @ApiCreatedResponse({ description: 'Cadastro pendente de confirmação' })
   @ApiConflictResponse({ description: 'E-mail já cadastrado' })
@@ -54,6 +55,7 @@ export class AuthController {
   }
 
   @Post('verify-email')
+  @Throttle({ default: { limit: 10, ttl: 900000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Confirmar endereço de e-mail' })
   @ApiOkResponse({ description: 'E-mail confirmado' })
@@ -88,6 +90,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Entrar' })
   @ApiOkResponse({ description: 'Login realizado' })
@@ -103,6 +106,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @HttpCode(HttpStatus.OK)
   async refresh(
     @Req() request: CookieRequest,
@@ -115,6 +119,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @Throttle({ default: { limit: 60, ttl: 60000 } })
   @HttpCode(HttpStatus.NO_CONTENT)
   async logout(
     @Req() request: CookieRequest,

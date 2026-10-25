@@ -15,6 +15,7 @@ export interface AccessTokenPayload {
   email: string;
   role: UserRole;
   iat: number;
+  passwordVersion?: string | null;
 }
 
 @Injectable()
@@ -35,8 +36,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) throw new UnauthorizedException('Sessão expirada');
     if (!user.isActive) throw new ForbiddenException('Usuário inativo');
     if (
-      user.passwordChangedAt &&
-      Math.floor(user.passwordChangedAt.getTime() / 1000) > payload.iat
+      (user.passwordChangedAt?.toISOString() ?? null) !==
+      (payload.passwordVersion ?? null)
     )
       throw new UnauthorizedException('Sessão expirada');
     return user;

@@ -2,6 +2,7 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { hash } from 'bcrypt';
+import { createHash } from 'crypto';
 import { UserRole } from '../common/enums/user-role.enum';
 import { User } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -17,6 +18,8 @@ describe('AuthService', () => {
       | 'findByEmailWithSecrets'
       | 'findByIdWithRefreshToken'
       | 'setRefreshTokenHash'
+      | 'startRefreshSession'
+      | 'rotateRefreshToken'
       | 'toPublic'
       | 'saveVerificationToken'
       | 'findByVerificationHash'
@@ -48,6 +51,8 @@ describe('AuthService', () => {
       findByEmailWithSecrets: jest.fn(),
       findByIdWithRefreshToken: jest.fn(),
       setRefreshTokenHash: jest.fn(),
+      startRefreshSession: jest.fn().mockResolvedValue(true),
+      rotateRefreshToken: jest.fn().mockResolvedValue(true),
       saveVerificationToken: jest.fn(),
       findByVerificationHash: jest.fn(),
       confirmEmail: jest.fn(),
@@ -155,13 +160,14 @@ describe('AuthService', () => {
     jwt.verifyAsync.mockResolvedValue({ sub: baseUser.id, type: 'refresh' });
     users.findByIdWithRefreshToken.mockResolvedValue({
       ...baseUser,
-      refreshTokenHash: await hash(oldToken, 4),
+      refreshTokenHash: createHash('sha256').update(oldToken).digest('hex'),
     });
     const result = await service.refresh(oldToken);
     expect(result.refreshToken).toBe('refresh-token');
-    expect(users.setRefreshTokenHash).toHaveBeenCalledWith(
+    expect(users.rotateRefreshToken).toHaveBeenCalledWith(
       baseUser.id,
-      expect.any(String),
+      createHash('sha256').update(oldToken).digest('hex'),
+      expect.stringMatching(/^[a-f0-9]{64}$/),
     );
   });
 
@@ -173,11 +179,40 @@ describe('AuthService', () => {
       refreshTokenHash: await hash(token, 4),
     });
     await service.logout(token);
-    expect(users.setRefreshTokenHash).toHaveBeenCalledWith(baseUser.id, null);
+    expect(users.rotateRefreshToken).toHaveBeenCalledWith(
+      baseUser.id,
+      createHash('sha256').update(token).digest('hex'),
+      null,
+    );
   });
 
   it('mantém logout sem cookie idempotente', async () => {
     await expect(service.logout(undefined)).resolves.toBeUndefined();
     expect(users.setRefreshTokenHash).not.toHaveBeenCalled();
+  });
+  it('rejects legacy bcrypt hashes even if the prefix matches', async () => {
+    const a = 'x'.repeat(80) + 'a',
+      b = 'x'.repeat(80) + 'b';
+    jwt.verifyAsync.mockResolvedValue({ sub: baseUser.id, type: 'refresh' });
+    users.findByIdWithRefreshToken.mockResolvedValue({
+      ...baseUser,
+      refreshTokenHash: await hash(b, 4),
+    });
+    await expect(service.refresh(a)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(users.rotateRefreshToken).not.toHaveBeenCalled();
+  });
+  it('rejects a lost compare-and-swap during refresh', async () => {
+    const token = 'synthetic-refresh';
+    jwt.verifyAsync.mockResolvedValue({ sub: baseUser.id, type: 'refresh' });
+    users.findByIdWithRefreshToken.mockResolvedValue({
+      ...baseUser,
+      refreshTokenHash: createHash('sha256').update(token).digest('hex'),
+    });
+    users.rotateRefreshToken.mockResolvedValue(false);
+    await expect(service.refresh(token)).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
   });
 });
