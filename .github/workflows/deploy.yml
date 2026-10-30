@@ -1,0 +1,63 @@
+name: Publicar Omni
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  
+permissions: {}
+
+concurrency:
+  group: omni-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Publicar na VPS
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OMNI_SSH_PRIVATE_KEY }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+
+          test -n "$SSH_PRIVATE_KEY" || {
+            echo "O segredo OMNI_SSH_PRIVATE_KEY não foi configurado."
+            exit 1
+          }
+
+          ssh_dir=$(mktemp -d "$RUNNER_TEMP/omni-ssh.XXXXXX")
+          trap 'rm -rf "$ssh_dir"' EXIT
+
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$ssh_dir/key"
+
+          cat > "$ssh_dir/known_hosts" <<'EOF'
+          179.197.81.74 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKPABvmQude0sRlsH0XpR5XmR8SkxA2k7BzFwtV4yPBn
+          EOF
+
+          ssh -F /dev/null \
+            -i "$ssh_dir/key" \
+            -o IdentitiesOnly=yes \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            -o HostKeyAlgorithms=ssh-ed25519 \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=10 \
+            -T omni-deploy@179.197.81.74 deploy
+
+      - name: Conferir HTTPS e API
+        shell: bash
+        run: |
+          curl --fail --silent --show-error \
+            --retry 5 --retry-delay 5 --retry-all-errors \
+            --connect-timeout 10 --max-time 30 \
+            --output /dev/null \
+            https://app.useomni.cloud/api/health
