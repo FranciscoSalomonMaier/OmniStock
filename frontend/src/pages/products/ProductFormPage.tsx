@@ -1,3 +1,4 @@
+import { merchandiseOriginOptions } from "../fiscal/fiscal-model";
 import { FiscalProductEditor } from "../fiscal/FiscalProductEditor";
 import { BundleEditor } from "../../components/products/BundleEditor";
 import {
@@ -145,7 +146,8 @@ export function ProductFormPage() {
     if (first) setTimeout(() => refs.current[first]?.focus(), 0);
   }, [errors]);
   function change(key: Field, value: string) {
-    const next = { ...form, [key]: value };
+    const normalizedValue = key === "ncm" ? value.replace(/\D/g, "") : value;
+    const next = { ...form, [key]: normalizedValue };
     setForm(next);
     if (touched[key]) setErrors(validate(next));
   }
@@ -318,6 +320,7 @@ export function ProductFormPage() {
             >
               {[
                 "UN",
+                "KIT",
                 "KG",
                 "G",
                 "L",
@@ -330,7 +333,9 @@ export function ProductFormPage() {
                 "PCT",
                 "PAR",
               ].map((u) => (
-                <option key={u}>{u}</option>
+                <option key={u} value={u}>
+                  {u}
+                </option>
               ))}
             </select>
           </label>
@@ -358,9 +363,9 @@ export function ProductFormPage() {
               onChange={(e) => change("merchandiseOrigin", e.target.value)}
             >
               <option value="">Não informada</option>
-              {Array.from({ length: 9 }, (_, i) => (
-                <option key={i} value={i}>
-                  {i}
+              {merchandiseOriginOptions.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -374,7 +379,6 @@ export function ProductFormPage() {
           {input("length", "Comprimento (cm)", "number")}
         </fieldset>
         <fieldset>
-          <legend>Estoque mínimo</legend>
           {input("minimumStock", "Estoque mínimo", "number")}
         </fieldset>
         <fieldset>
@@ -398,7 +402,9 @@ export function ProductFormPage() {
         )}
         {uploadWarning && <p className="notice">{uploadWarning}</p>}
         <div className="form-actions">
-          <button disabled={saving}>{saving ? "Salvando..." : "Salvar"}</button>
+          <button type="submit" className="product-save-button" disabled={saving}>
+            {saving ? "Salvando..." : "Salvar"}
+          </button>
           <Link to="/products">Cancelar</Link>
         </div>
       </form>

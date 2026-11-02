@@ -151,6 +151,18 @@ export const settingFields: Field[] = [
     type: "checkbox",
   }),
 ];
+export const merchandiseOriginOptions: [string, string][] = [
+  ["0", "0 — Nacional"],
+  ["1", "1 — Estrangeira, importação direta"],
+  ["2", "2 — Estrangeira, mercado interno"],
+  ["3", "3 — Nacional, importação superior a 40% até 70%"],
+  ["4", "4 — Nacional, processo produtivo básico"],
+  ["5", "5 — Nacional, importação até 40%"],
+  ["6", "6 — Importação direta, sem similar nacional"],
+  ["7", "7 — Mercado interno, sem similar nacional"],
+  ["8", "8 — Nacional, importação superior a 70%"],
+];
+
 export const profileFields: Field[] = [
   f("ncm", "NCM", "Classificação", { pattern: "[0-9]{8}" }),
   f("cest", "CEST", "Classificação", { pattern: "[0-9]{7}" }),
@@ -159,17 +171,7 @@ export const profileFields: Field[] = [
     hint: "Sugestão inicial; não atende automaticamente todas as operações.",
   }),
   f("origin", "Origem da mercadoria", "Classificação", {
-    options: [
-      ["0", "0 — Nacional"],
-      ["1", "1 — Estrangeira, importação direta"],
-      ["2", "2 — Estrangeira, mercado interno"],
-      ["3", "3 — Nacional, importação superior a 40% até 70%"],
-      ["4", "4 — Nacional, processo produtivo básico"],
-      ["5", "5 — Nacional, importação até 40%"],
-      ["6", "6 — Importação direta, sem similar nacional"],
-      ["7", "7 — Mercado interno, sem similar nacional"],
-      ["8", "8 — Nacional, importação superior a 70%"],
-    ],
+    options: merchandiseOriginOptions,
   }),
   f("commercialUnit", "Unidade comercial", "Unidades"),
   f("taxableUnit", "Unidade tributável", "Unidades"),

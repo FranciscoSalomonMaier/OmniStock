@@ -5,6 +5,7 @@ export enum ProductStatus {
 }
 export enum UnitOfMeasure {
   UN = 'UN',
+  KIT = 'KIT',
   KG = 'KG',
   G = 'G',
   L = 'L',

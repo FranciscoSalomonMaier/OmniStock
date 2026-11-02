@@ -3,7 +3,7 @@ export class CreateProducts1723766700000 implements MigrationInterface {
   name = 'CreateProducts1723766700000';
   async up(q: QueryRunner) {
     await q.query(
-      `CREATE TYPE "product_unit_enum" AS ENUM('UN','KG','G','L','ML','M','CM','M2','M3','CX','PCT','PAR')`,
+      `CREATE TYPE "product_unit_enum" AS ENUM('UN','KIT','KG','G','L','ML','M','CM','M2','M3','CX','PCT','PAR')`,
     );
     await q.query(
       `CREATE TYPE "product_status_enum" AS ENUM('ACTIVE','INACTIVE','DISCONTINUED')`,
