@@ -20,8 +20,8 @@ const initial = {
   description: "",
   barcode: "",
   unitOfMeasure: "UN",
+  purchasePrice: "",
   costPrice: "",
-  salePrice: "",
   ncm: "",
   cest: "",
   merchandiseOrigin: "",
@@ -37,6 +37,7 @@ type Form = typeof initial;
 type Field = keyof Form;
 type Errors = Partial<Record<Field, string>>;
 const numericRules: Partial<Record<Field, RegExp>> = {
+  purchasePrice: /^\d{1,13}(\.\d{1,2})?$/,
   costPrice: /^\d{1,13}(\.\d{1,2})?$/,
   weight: /^\d{1,9}(\.\d{1,3})?$/,
   height: /^\d{1,10}(\.\d{1,2})?$/,
@@ -63,19 +64,13 @@ function validate(form: Form): Errors {
       ? "O nome deve possuir pelo menos 2 caracteres."
       : "O nome do produto é obrigatório.";
   if (!form.unitOfMeasure) e.unitOfMeasure = "Selecione uma unidade de medida.";
-  if (!form.salePrice) e.salePrice = "O preço de venda é obrigatório.";
-  else if (
-    Number(form.salePrice) < 0 ||
-    !/^\d{1,13}(\.\d{1,2})?$/.test(form.salePrice)
-  )
-    e.salePrice = "Informe um preço de venda válido e não negativo.";
   for (const key of Object.keys(numericRules) as Field[])
     if (
       form[key] &&
       (Number(form[key]) < 0 || !numericRules[key]!.test(form[key]))
     )
       e[key] =
-        `${({ costPrice: "O preço de custo", weight: "O peso", height: "A altura", width: "A largura", length: "O comprimento" } as Record<string, string>)[key]} não pode ser negativo ou inválido.`;
+        `${({ purchasePrice: "O preço de compra", costPrice: "O preço de custo", weight: "O peso", height: "A altura", width: "A largura", length: "O comprimento" } as Record<string, string>)[key]} não pode ser negativo ou inválido.`;
   if (
     form.minimumStock &&
     (Number(form.minimumStock) < 0 ||
@@ -339,8 +334,13 @@ export function ProductFormPage() {
         </fieldset>
         <fieldset>
           <legend>Preços</legend>
-          {input("costPrice", "Preço de custo", "number")}
-          {input("salePrice", "Preço de venda *", "number")}
+          {input("purchasePrice", "Preço de Compra", "number")}
+          {input("costPrice", "Preço de Custo", "number")}
+          <p className="muted">Compra: valor pago ao fornecedor por unidade.</p>
+          <p className="muted">
+            Custo: valor total por unidade, incluindo compra e despesas
+            adicionais. Informe manualmente.
+          </p>
         </fieldset>
         <fieldset>
           <legend>Informações fiscais básicas (legado)</legend>
@@ -374,9 +374,7 @@ export function ProductFormPage() {
           {input("width", "Largura (cm)", "number")}
           {input("length", "Comprimento (cm)", "number")}
         </fieldset>
-        <fieldset>
-          {input("minimumStock", "Estoque mínimo", "number")}
-        </fieldset>
+        <fieldset>{input("minimumStock", "Estoque mínimo", "number")}</fieldset>
         <fieldset>
           <legend>Imagens</legend>
           <input
@@ -398,7 +396,11 @@ export function ProductFormPage() {
         )}
         {uploadWarning && <p className="notice">{uploadWarning}</p>}
         <div className="form-actions">
-          <button type="submit" className="product-save-button" disabled={saving}>
+          <button
+            type="submit"
+            className="product-save-button"
+            disabled={saving}
+          >
             {saving ? "Salvando..." : "Salvar"}
           </button>
           <Link to="/products">Cancelar</Link>

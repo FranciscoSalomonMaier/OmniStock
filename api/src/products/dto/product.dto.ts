@@ -41,8 +41,8 @@ export class CreateProductDto {
   @Matches(/^\d{8}$|^\d{12,14}$/)
   barcode?: string | null;
   @IsEnum(UnitOfMeasure) unitOfMeasure: UnitOfMeasure;
+  @IsOptional() @Matches(/^\d{1,13}(\.\d{1,2})?$/) purchasePrice?: string | null;
   @IsOptional() @Matches(/^\d{1,13}(\.\d{1,2})?$/) costPrice?: string | null;
-  @Matches(/^\d{1,13}(\.\d{1,2})?$/) salePrice: string;
   @IsOptional()
   @Transform(({ value }) => digits(value as unknown))
   @Length(8, 8)

@@ -38,7 +38,7 @@ export function ProductDetailsPage() {
     <div className="gallery">{images.map((image) => <img key={image.id} src={image.blobUrl} alt={image.originalName} />)}</div>
     <dl className="details">
       <div><dt>Status</dt><dd>{product.status}</dd></div><div><dt>Categoria</dt><dd>{product.category?.name ?? 'Sem categoria'}</dd></div>
-      <div><dt>Preço de venda</dt><dd>R$ {product.salePrice}</dd></div>{product.costPrice !== undefined && <div><dt>Preço de custo</dt><dd>{product.costPrice ?? '—'}</dd></div>}
+      {product.purchasePrice !== undefined && <div><dt>Preço de Compra</dt><dd>{product.purchasePrice == null ? '—' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(product.purchasePrice))}</dd></div>}{product.costPrice !== undefined && <div><dt>Preço de Custo</dt><dd>{product.costPrice == null ? '—' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(product.costPrice))}</dd></div>}
       <div><dt>Unidade</dt><dd>{product.unitOfMeasure}</dd></div><div><dt>Código de barras</dt><dd>{product.barcode ?? '—'}</dd></div>
       <div><dt>NCM / CEST</dt><dd>{product.ncm ?? '—'} / {product.cest ?? '—'}</dd></div>
       <div><dt>Peso e dimensões</dt><dd>{product.weight ?? '—'} kg · {product.height ?? '—'} × {product.width ?? '—'} × {product.length ?? '—'} cm</dd></div>

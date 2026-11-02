@@ -41,7 +41,9 @@ export class ProductsService {
           categoryId: dto.categoryId ?? null,
           description: dto.description ?? null,
           barcode: dto.barcode ?? null,
+          purchasePrice: dto.purchasePrice ?? null,
           costPrice: dto.costPrice ?? null,
+          salePrice: null,
           ncm: dto.ncm ?? null,
           cest: dto.cest ?? null,
           defaultCfop: null,
@@ -349,6 +351,7 @@ export class ProductsService {
     if ([CompanyRole.SUPPORT, CompanyRole.VIEWER].includes(role)) {
       const safe: Record<string, unknown> = { ...product };
       delete safe.costPrice;
+      delete safe.purchasePrice;
       return safe;
     }
     return product;

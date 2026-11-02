@@ -586,8 +586,7 @@ function ListingsForCompany({ suggestionsOnly }: { suggestionsOnly: boolean }) {
                         {selectedProduct?.id === product.id ? "●" : "○"}
                       </span>
                       <small>
-                        {product.category?.name || "Sem categoria"} · R${" "}
-                        {product.salePrice} ·{" "}
+                        {product.category?.name || "Sem categoria"} ·{" "}
                         {friendly[product.status] || product.status}
                       </small>
                     </button>

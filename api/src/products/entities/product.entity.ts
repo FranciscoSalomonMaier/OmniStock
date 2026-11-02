@@ -31,6 +31,14 @@ export class Product {
   @Column({ name: 'unit_of_measure', type: 'enum', enum: UnitOfMeasure })
   unitOfMeasure: UnitOfMeasure;
   @Column({
+    name: 'purchase_price',
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    nullable: true,
+  })
+  purchasePrice: string | null;
+  @Column({
     name: 'cost_price',
     type: 'decimal',
     precision: 15,
@@ -38,8 +46,15 @@ export class Product {
     nullable: true,
   })
   costPrice: string | null;
-  @Column({ name: 'sale_price', type: 'decimal', precision: 15, scale: 2 })
-  salePrice: string;
+  // Legacy product price: current selling prices belong to marketplace listings.
+  @Column({
+    name: 'sale_price',
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    nullable: true,
+  })
+  salePrice: string | null;
   @Column({ type: 'varchar', nullable: true, length: 8 }) ncm: string | null;
   @Column({ type: 'varchar', nullable: true, length: 7 }) cest: string | null;
   @Column({ name: 'default_cfop', type: 'varchar', nullable: true, length: 4 })

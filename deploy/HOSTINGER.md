@@ -109,3 +109,22 @@ Referências: [Compose e interpolação](https://docs.docker.com/compose/how-tos
 - Compose validado com valores sintéticos e todos os perfis. Não foram executadas migrations em banco operacional nem acessado servidor Hostinger.
 
 Para repetir a integração de sessão no ambiente de desenvolvimento, usar `AUTH_TEST_DATABASE_URL` apontando exclusivamente a PostgreSQL local descartável e `npm run test:auth:integration` dentro de api/.
+
+## Atualização: preços definidos nos marketplaces
+
+O cadastro e a edição de produtos não recebem mais preço de venda. Os preços
+por anúncio e os valores históricos dos pedidos continuam independentes.
+A coluna legada `products.sale_price` é preservada e passa a aceitar NULL pela
+migration `MakeProductSalePriceOptional1800000000400`. Execute as migrations
+antes de iniciar a nova API; novos produtos são criados sem preço de venda.
+O rollback dessa migration é bloqueado pelo PostgreSQL se houver valores NULL:
+não se atribuem preços fictícios para permitir a reversão.
+
+## Compra e custo do produto
+
+A migration `AddProductPurchasePrice1800000000500` adiciona `purchase_price`
+como decimal opcional. Valores antigos de custo e venda permanecem intactos;
+não há cópia automática para compra. Compra e custo total são informados
+independentemente por unidade. Os dois valores são ocultados de SUPPORT e VIEWER
+nas consultas de produtos. Preços de anúncios e pedidos não são alterados.
+Execute as migrations antes de iniciar a nova API.
