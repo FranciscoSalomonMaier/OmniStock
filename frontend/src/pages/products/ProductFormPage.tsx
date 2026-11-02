@@ -91,10 +91,7 @@ function dialogMessage(error: unknown) {
   if (error.status === 0) return error.message;
   if (error.status === 403)
     return "Você não possui permissão para cadastrar produtos.";
-  if (error.status === 409)
-    return error.message.toLowerCase().includes("barras")
-      ? "Já existe um produto com este código de barras nesta empresa."
-      : "Já existe um produto com este SKU nesta empresa.";
+  if (error.status === 409) return error.message;
   if (error.status === 400) return "Existem informações inválidas no cadastro.";
   return (
     error.message || "Não foi possível cadastrar o produto. Tente novamente."
@@ -206,11 +203,8 @@ export function ProductFormPage() {
       if (fields)
         for (const [k, v] of Object.entries(fields))
           if (k in initial) mapped[k as Field] = v[0];
-      if (api?.status === 409) {
-        const field = api.message.toLowerCase().includes("barras")
-          ? "barcode"
-          : "sku";
-        mapped[field] = dialogMessage(api);
+      if (api?.status === 409 && api.message.toLowerCase().includes("sku")) {
+        mapped.sku = dialogMessage(api);
       }
       if (Object.keys(mapped).length) {
         setErrors((x) => ({ ...x, ...mapped }));

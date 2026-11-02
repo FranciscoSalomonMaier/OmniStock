@@ -339,11 +339,11 @@ export class ProductsService {
   }
   private conflict(e: unknown): never | void {
     if (typeof e === 'object' && e && 'code' in e && e.code === '23505') {
-      const detail = 'detail' in e ? String(e.detail) : '';
+      const constraint = 'constraint' in e ? String(e.constraint) : '';
       throw new ConflictException(
-        detail.includes('barcode')
-          ? 'Já existe um produto com este código de barras nesta empresa.'
-          : 'Já existe um produto com este SKU nesta empresa.',
+        constraint === 'UQ_product_company_sku' || constraint === 'IDX_product_company_sku'
+          ? 'Já existe um produto com este SKU nesta empresa.'
+          : 'Já existe um cadastro com os mesmos dados exclusivos nesta empresa.',
       );
     }
   }

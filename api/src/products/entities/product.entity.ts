@@ -18,6 +18,9 @@ import { ProductCategory } from './product-category.entity';
 import { ProductImage } from './product-image.entity';
 @Entity('products')
 @Index(['companyId', 'sku'], { unique: true })
+@Index('IDX_product_company_barcode', ['companyId', 'barcode'], {
+  where: '"barcode" IS NOT NULL',
+})
 export class Product {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ name: 'company_id', type: 'uuid' }) companyId: string;

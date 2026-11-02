@@ -128,3 +128,12 @@ não há cópia automática para compra. Compra e custo total são informados
 independentemente por unidade. Os dois valores são ocultados de SUPPORT e VIEWER
 nas consultas de produtos. Preços de anúncios e pedidos não são alterados.
 Execute as migrations antes de iniciar a nova API.
+
+## Códigos de barras compartilhados
+
+Execute a migration `AllowSharedProductBarcodes1800000000600` antes de iniciar
+a nova API. Ela substitui o índice exclusivo por um índice comum por empresa
+e código de barras, sem alterar dados. SKUs continuam exclusivos por empresa.
+Buscas pelo mesmo código podem retornar vários produtos ou kits, exigindo seleção
+explícita. A composição dos kits e os vínculos de anúncios continuam usando IDs
+e SKUs. O rollback falha se houver códigos repetidos; não elimina registros.
