@@ -171,21 +171,6 @@ export class FiscalReadinessService {
         'CEST ausente; confirme se é aplicável.',
         true,
       );
-    if (!p.defaultCfop)
-      issue(
-        r,
-        'TAX_RULE',
-        'CFOP_MISSING',
-        'CFOP padrão ausente; configure a regra da operação.',
-        true,
-      );
-    issue(
-      r,
-      'TAX_RULE',
-      'CFOP_OPERATION',
-      'O CFOP padrão é apenas uma sugestão; confirme o código para cada operação.',
-      true,
-    );
     if (p.accountantReviewStatus !== 'APPROVED')
       issue(
         r,

@@ -40,7 +40,7 @@ export function ProductDetailsPage() {
       <div><dt>Status</dt><dd>{product.status}</dd></div><div><dt>Categoria</dt><dd>{product.category?.name ?? 'Sem categoria'}</dd></div>
       <div><dt>Preço de venda</dt><dd>R$ {product.salePrice}</dd></div>{product.costPrice !== undefined && <div><dt>Preço de custo</dt><dd>{product.costPrice ?? '—'}</dd></div>}
       <div><dt>Unidade</dt><dd>{product.unitOfMeasure}</dd></div><div><dt>Código de barras</dt><dd>{product.barcode ?? '—'}</dd></div>
-      <div><dt>NCM / CEST / CFOP</dt><dd>{product.ncm ?? '—'} / {product.cest ?? '—'} / {product.defaultCfop ?? '—'}</dd></div>
+      <div><dt>NCM / CEST</dt><dd>{product.ncm ?? '—'} / {product.cest ?? '—'}</dd></div>
       <div><dt>Peso e dimensões</dt><dd>{product.weight ?? '—'} kg · {product.height ?? '—'} × {product.width ?? '—'} × {product.length ?? '—'} cm</dd></div>
       <div><dt>Estoque mínimo</dt><dd>{new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 }).format(Number(product.minimumStock))}</dd></div><div><dt>Criado</dt><dd>{new Date(product.createdAt).toLocaleString('pt-BR')}</dd></div>
     </dl><p>{product.description}</p>

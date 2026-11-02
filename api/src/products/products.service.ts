@@ -44,7 +44,7 @@ export class ProductsService {
           costPrice: dto.costPrice ?? null,
           ncm: dto.ncm ?? null,
           cest: dto.cest ?? null,
-          defaultCfop: dto.defaultCfop ?? null,
+          defaultCfop: null,
           merchandiseOrigin: dto.merchandiseOrigin ?? null,
           weight: dto.weight ?? null,
           height: dto.height ?? null,

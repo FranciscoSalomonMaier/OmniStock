@@ -52,10 +52,6 @@ export class CreateProductDto {
   @Length(7, 7)
   cest?: string | null;
   @IsOptional()
-  @Transform(({ value }) => digits(value as unknown))
-  @Length(4, 4)
-  defaultCfop?: string | null;
-  @IsOptional()
   @IsEnum(MerchandiseOrigin)
   merchandiseOrigin?: MerchandiseOrigin | null;
   @IsOptional() @Matches(/^\d{1,9}(\.\d{1,3})?$/) weight?: string | null;

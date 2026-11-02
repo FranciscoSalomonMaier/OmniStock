@@ -13,7 +13,11 @@ import {
   EstablishmentDto,
 } from './fiscal.dto';
 import { defaultFiscalPermission } from './fiscal-permissions';
-import { DisabledFiscalNumberReservationService } from './fiscal.service';
+import {
+  DisabledFiscalNumberReservationService,
+  FiscalService,
+} from './fiscal.service';
+import { FiscalReadinessService } from './fiscal-readiness.service';
 describe('Fiscal validation and authorization', () => {
   it.each(['11222333000181', '11.222.333/0001-81', '00.000.000/E08G-12'])(
     'accepts valid CNPJ %s',
@@ -63,7 +67,7 @@ describe('Fiscal validation and authorization', () => {
   it.each([
     ['ncm', '123'],
     ['cest', '12345678'],
-    ['defaultCfop', '9102'],
+    ['defaultCfop', '5102'],
     ['csosn', '999'],
     ['origin', '9'],
     ['ibsRate', 0.1],
@@ -139,6 +143,40 @@ describe('Fiscal validation and authorization', () => {
     expect(defaultFiscalPermission('ADMIN', 'fiscal.review.approve')).toBe(
       true,
     );
+  });
+  it('does not require a product CFOP for fiscal readiness', async () => {
+    const fiscal = {
+      product: jest.fn().mockResolvedValue(undefined),
+      currentProfile: jest.fn().mockResolvedValue({
+        ncm: '85131010',
+        origin: '0',
+        commercialUnit: 'UN',
+        taxableUnit: 'UN',
+        taxableConversionFactor: '1.000000',
+        csosn: '102',
+        accountantReviewStatus: 'APPROVED',
+      }),
+      db: {
+        manager: {
+          findOneBy: jest
+            .fn()
+            .mockResolvedValue({ taxRegime: 'SIMPLES_NACIONAL' }),
+        },
+        getRepository: () => ({
+          createQueryBuilder: () => ({
+            where: () => ({ getMany: async () => [] }),
+          }),
+        }),
+      },
+    } as unknown as FiscalService;
+    const readiness = await new FiscalReadinessService(fiscal).validateProduct(
+      'company',
+      'product',
+    );
+    expect(readiness.ready).toBe(true);
+    expect(
+      [...readiness.errors, ...readiness.warnings].map((item) => item.code),
+    ).not.toEqual(expect.arrayContaining(['CFOP_MISSING', 'CFOP_OPERATION']));
   });
   it('cannot reserve/consume a fiscal number or emit', async () => {
     await expect(

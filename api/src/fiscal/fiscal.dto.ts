@@ -227,10 +227,6 @@ export class ProductFiscalProfileDto {
   cest?: string;
   @ApiProperty({ required: false })
   @IsOptional()
-  @Matches(/^[123567]\d{3}$/)
-  defaultCfop?: string;
-  @ApiProperty({ required: false })
-  @IsOptional()
   @IsIn(['0', '1', '2', '3', '4', '5', '6', '7', '8'])
   origin?: string;
   @ApiProperty({ required: false })

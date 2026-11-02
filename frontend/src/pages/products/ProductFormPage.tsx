@@ -24,7 +24,6 @@ const initial = {
   salePrice: "",
   ncm: "",
   cest: "",
-  defaultCfop: "",
   merchandiseOrigin: "",
   weight: "",
   height: "",
@@ -87,8 +86,6 @@ function validate(form: Form): Errors {
     e.ncm = "O NCM deve possuir 8 dígitos.";
   if (form.cest && !/^\d{7}$/.test(form.cest))
     e.cest = "O CEST deve possuir 7 dígitos.";
-  if (form.defaultCfop && !/^\d{4}$/.test(form.defaultCfop))
-    e.defaultCfop = "O CFOP deve possuir 4 dígitos.";
   if (form.barcode && !barcodeValid(form.barcode))
     e.barcode = "O código de barras informado é inválido.";
   return e;
@@ -355,7 +352,6 @@ export function ProductFormPage() {
           )}
           {input("ncm", "NCM (8 dígitos)")}
           {input("cest", "CEST (7 dígitos)")}
-          {input("defaultCfop", "CFOP padrão (4 dígitos)")}
           <label>
             Origem
             <select

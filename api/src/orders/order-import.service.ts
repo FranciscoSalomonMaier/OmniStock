@@ -344,7 +344,8 @@ export class OrderImportService {
         status: null,
         ncmSnapshot: product?.ncm ?? null,
         cestSnapshot: product?.cest ?? null,
-        cfopSnapshot: product?.defaultCfop ?? null,
+        // CFOP belongs to the fiscal operation; preserve existing historical values.
+        cfopSnapshot: existingItem?.cfopSnapshot ?? null,
         merchandiseOriginSnapshot: product?.merchandiseOrigin ?? null,
         taxUnitSnapshot: product?.unitOfMeasure ?? null,
       });

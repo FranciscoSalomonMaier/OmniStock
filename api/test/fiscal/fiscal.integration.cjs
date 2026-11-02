@@ -28,10 +28,10 @@ const concurrent=await Promise.allSettled([fiscal.changeNumber(company,user,seq.
 await assert.rejects(()=>fiscal.changeNumber(company,user,seq.id,{nextNumber:4,expectedVersion:2,reason:' '}),/Justifique/);checks++;
 await assert.rejects(()=>fiscal.changeNumber(company,user,seq.id,{nextNumber:1,expectedVersion:2,reason:'Redução teste'}),/Confirme/);checks++;
 const migrated=await fiscal.currentProfile(company,product);ok(migrated.ncm==='85131010'&&migrated.defaultCfop==='5102','legacy product classification preserved by migration');
-const profile={ncm:'85131010',defaultCfop:'5102',origin:'0',commercialUnit:'UN',taxableUnit:'UN',taxableConversionFactor:'1.000000',csosn:'102',ibsRate:'0.1000',validFrom:new Date().toISOString()};
+const profile={ncm:'85131010',origin:'0',commercialUnit:'UN',taxableUnit:'UN',taxableConversionFactor:'1.000000',csosn:'102',ibsRate:'0.1000',validFrom:new Date().toISOString()};
 const unit=await fiscal.saveProfile(company,user,product,profile);const bundle=await fiscal.saveProfile(company,user,kit,{...profile,ncm:'85131010'});ok(unit.productId===product&&bundle.productId===kit,'independent profiles for unit and kit');
 const invalid=async(cls,data)=>validate(plainToInstance(cls,data),{whitelist:true,forbidNonWhitelisted:true});
-for(const [field,value] of [['ncm','123'],['cest','123'],['defaultCfop','9102'],['csosn','999'],['taxableConversionFactor','0'],['ibsRate','0.12345'],['ibsRate',0.1],['ibsRate','100.0001'],['origin','9']])ok((await invalid(dtos.ProductFiscalProfileDto,{...profile,[field]:value})).length>0,'DTO rejects '+field+' '+value);
+for(const [field,value] of [['ncm','123'],['cest','123'],['defaultCfop','5102'],['csosn','999'],['taxableConversionFactor','0'],['ibsRate','0.12345'],['ibsRate',0.1],['ibsRate','100.0001'],['origin','9']])ok((await invalid(dtos.ProductFiscalProfileDto,{...profile,[field]:value})).length>0,'DTO rejects '+field+' '+value);
 await assert.rejects(()=>fiscal.saveProfile(company,user,product,{...profile,cstIcms:'00'}),/nunca ambos/);checks++;
 await assert.rejects(()=>fiscal.saveProfile(company,user,product,{...profile,csosn:undefined,cstIcms:'00'}),/regime/);checks++;
 await fiscal.review(company,user,'PRODUCT_PROFILE',unit.id);await fiscal.review(company,user,'PRODUCT_PROFILE',unit.id,{decision:'APPROVED',note:'Revisado em teste',accountantReference:'Contador teste'});

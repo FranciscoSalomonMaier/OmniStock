@@ -37,12 +37,15 @@ describe('CreateProductDto', () => {
     ['minimumStock', '-1'],
     ['ncm', '123'],
     ['cest', '123'],
-    ['defaultCfop', '12'],
   ])('rejeita %s inválido', async (field, value) =>
     expect(
       pipe.transform({ ...valid, [field]: value }, metadata),
     ).rejects.toThrow(),
   );
+  it('rejeita CFOP no cadastro do produto', async () =>
+    expect(
+      pipe.transform({ ...valid, defaultCfop: '5102' }, metadata),
+    ).rejects.toThrow());
   it('converte campo opcional vazio em null', async () =>
     expect(
       pipe.transform({ ...valid, barcode: '' }, metadata),

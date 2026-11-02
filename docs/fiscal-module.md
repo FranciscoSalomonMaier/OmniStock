@@ -47,7 +47,7 @@ Mudança do próximo número tem endpoint exclusivo, permissão especial, justif
 - CNPJ: 14 posições, normalização e DV módulo 11, incluindo alfanumérico (ASCII menos 48), sem consulta cadastral externa. A coluna antiga da empresa é preservada.
 - IE: contribuinte exige inscrição não ISENTO; isento permite vazio/ISENTO. A aplicabilidade legal e DV por UF não são inferidos. Indicações são cadastrais e deverão ser mapeadas conforme o contexto no futuro XML.
 - Endereço: CEP de oito dígitos; UF válida e prefixo do código IBGE de sete dígitos compatível. **Não há catálogo completo de municípios instalado**: existência e vigência são conferências pendentes. País usa código de quatro dígitos da NF-e, diferente do ISO usado pelos endereços importados de pedidos.
-- NCM oito dígitos; CEST opcional de sete; CFOP quatro dígitos iniciando em 1/2/3 (entrada) ou 5/6/7 (saída). Regras verificam direção da operação. Um CFOP padrão não resolve todas as operações. Não se deduz aplicabilidade de CEST a partir do NCM.
+- NCM oito dígitos; CEST opcional de sete; CFOP quatro dígitos iniciando em 1/2/3 (entrada) ou 5/6/7 (saída). Regras verificam direção da operação. O CFOP é configurado nas regras da operação, não no cadastro do produto. Não se deduz aplicabilidade de CEST a partir do NCM.
 - CST ICMS, CSOSN, CST IPI/PIS/COFINS e origem usam domínios explícitos; CST ICMS é separado da origem. CST e CSOSN são excludentes. CRT 1/4 usa CSOSN, CRT 2/3 usa CST ICMS; particularidades de operação/MEI continuam sujeitas à tabela/regra oficial e análise contábil. Nenhum código é escolhido automaticamente.
 - Unidades distintas, até seis caracteres, fator positivo `numeric(18,6)`. Percentuais em `numeric(7,4)`, intervalo técnico 0–100. Alíquota por quantidade em `numeric(18,6)`, não negativa. API exige strings decimais, rejeitando números binários e escala excedida; PostgreSQL retorna strings. Não há cálculo tributário com Number.
 - IBS/CBS: CST (3), classificação (6) e alíquotas opcionais; IS tem código e alíquota opcionais. **Formato não valida existência, vigência ou combinação nas tabelas dinâmicas oficiais.** Não há obrigatoriedade geral nem alíquota presumida da reforma.
@@ -151,3 +151,15 @@ Não implementados: emissão/transmissão, assinatura, certificados, XML final, 
 ### Resultado no desenvolvimento local
 
 Migration aplicada ao PostgreSQL **de desenvolvimento** após os testes descartáveis. Consulta real de visão geral validada sem expor dados empresariais. Nenhuma configuração foi preenchida com códigos deduzidos, nenhum estabelecimento real foi criado para teste e não houve emissão, commit ou push. Regressão de kits/estoque também passou com os artefatos compilados isoladamente e banco descartável.
+
+### CFOP por operação
+
+O cadastro básico e o perfil fiscal do produto não recebem mais `defaultCfop`.
+As colunas legadas e os dados históricos permanecem no banco, mas não determinam
+CFOP de novas importações de pedidos. Reimportações preservam snapshots já existentes.
+O CFOP continua disponível nas regras tributárias da operação. Sua ausência no
+perfil do produto não gera pendência de preparação fiscal.
+
+O futuro fluxo de NF-e deverá permitir um CFOP padrão da nota, aplicado aos itens,
+com revisão individual e persistência do código por item. Esse fluxo e a emissão
+não estão implementados nesta alteração. Não há migration ou remoção de dados.

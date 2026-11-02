@@ -166,10 +166,6 @@ export const merchandiseOriginOptions: [string, string][] = [
 export const profileFields: Field[] = [
   f("ncm", "NCM", "Classificação", { pattern: "[0-9]{8}" }),
   f("cest", "CEST", "Classificação", { pattern: "[0-9]{7}" }),
-  f("defaultCfop", "CFOP padrão", "Classificação", {
-    pattern: "[123567][0-9]{3}",
-    hint: "Sugestão inicial; não atende automaticamente todas as operações.",
-  }),
   f("origin", "Origem da mercadoria", "Classificação", {
     options: merchandiseOriginOptions,
   }),
