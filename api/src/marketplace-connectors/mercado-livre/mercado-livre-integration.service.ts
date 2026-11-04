@@ -12,6 +12,7 @@ import {
 } from '../../sales-channels/enums/sales-channel.enums';
 import { MercadoLivreConnector } from './mercado-livre.connector';
 import { MercadoLivreApiClient } from './mercado-livre-api.client';
+import { TokenEncryptionService } from '../../sales-channels/token-encryption.service';
 import { OAuthAuthorizationState } from './entities/oauth-authorization-state.entity';
 type CallbackStage =
   | 'VALIDATE_STATE'
@@ -42,16 +43,22 @@ export class MercadoLivreIntegrationService {
     private readonly api: MercadoLivreApiClient,
     private readonly credentialProvider: MarketplaceCredentialProvider,
     config: ConfigService,
+    private readonly encryption: TokenEncryptionService,
   ) {
     this.frontendUrl = config.getOrThrow<string>('FRONTEND_URL');
   }
   async authorize(companyId: string, connectionId: string, userId: string) {
     await this.connection(companyId, connectionId);
+    const codeVerifier = randomBytes(32).toString('base64url');
+    const codeChallenge = createHash('sha256')
+      .update(codeVerifier)
+      .digest('base64url');
     const state = randomBytes(32).toString('base64url'),
       expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await this.states.save(
       this.states.create({
         stateHash: this.hash(state),
+        encryptedCodeVerifier: this.encryption.encrypt(codeVerifier),
         companyId,
         connectionId,
         userId,
@@ -66,7 +73,7 @@ export class MercadoLivreIntegrationService {
       connectionId,
       redirectUri: '',
       state,
-      codeChallenge: null,
+      codeChallenge,
     });
     return { authorizationUrl: result.url, expiresAt };
   }
@@ -88,7 +95,7 @@ export class MercadoLivreIntegrationService {
         'VALIDATE_STATE',
         diagnosticId,
       );
-    let oauth: OAuthAuthorizationState;
+    let oauth: OAuthAuthorizationState & { codeVerifier: string };
     try {
       oauth = await this.consumeState(state);
     } catch (error: unknown) {
@@ -119,6 +126,7 @@ export class MercadoLivreIntegrationService {
       const authorization = await this.connector.exchangeAuthorizationCode({
         context,
         code,
+        codeVerifier: oauth.codeVerifier,
         redirectUri: '',
       });
       stage = 'ACCOUNT_LOOKUP';
@@ -259,8 +267,16 @@ export class MercadoLivreIntegrationService {
           'VALIDATION_ERROR',
           'State OAuth inválido.',
         );
+      // Pre-PKCE attempts cannot be completed safely: require a new authorization.
+      if (!value.encryptedCodeVerifier)
+        throw new Error('PKCE verifier unavailable');
+      const codeVerifier = this.encryption.decrypt(value.encryptedCodeVerifier);
+      if (!/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier))
+        throw new Error('Invalid PKCE verifier');
       value.consumedAt = new Date();
-      return manager.save(value);
+      value.encryptedCodeVerifier = null;
+      await manager.save(value);
+      return { ...value, codeVerifier };
     });
   }
   private async connection(companyId: string, id: string) {

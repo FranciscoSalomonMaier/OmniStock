@@ -157,3 +157,23 @@ Localize o evento pelo identificador exibido na tela. Etapas: `VALIDATE_STATE`,
 `LOAD_CONNECTION`, `TOKEN_EXCHANGE`, `ACCOUNT_LOOKUP`, `SAVE_CREDENTIALS` e
 `SAVE_CONNECTION`. Não reutilize URLs ou códigos de tentativas anteriores.
 Este ajuste não requer migration e não resolve automaticamente a causa da falha.
+
+## PKCE do Mercado Livre
+
+O fluxo OAuth agora usa PKCE S256 por tentativa, com verificador aleatório de
+32 bytes codificado em base64url e desafio SHA-256. O verificador fica
+criptografado com AES-256-GCM usando a chave existente de credenciais, na coluna
+`oauth_authorization_states.encrypted_code_verifier`. Ao consumir o state sob
+lock transacional, o verificador é recuperado e removido do banco antes da troca
+pelo token. Tentativas expiradas, repetidas, adulteradas ou anteriores à atualização
+são recusadas. Nenhum verificador é enviado ao navegador ou aos logs.
+
+Publicação: build da API, execução da migration `AddOAuthPkceVerifier1800000000700`
+e recriação da API. Mantenha PKCE habilitado no DevCenter. A chave de criptografia
+existente continua necessária; não gere outra. Inicie uma nova autorização pelo
+Omni após publicar. Não reutilize links anteriores. Refresh Tokens não usam PKCE.
+
+Teste isolado: `OAUTH_TEST_DATABASE_URL` deve apontar para PostgreSQL local
+descartável e `npm run test:oauth:integration` deve ser executado em api/. O teste
+cria/remove somente seu banco aleatório, valida migrações e concorrência e usa
+respostas simuladas do Mercado Livre, sem solicitar tokens reais.

@@ -5,6 +5,7 @@ import {
   Index,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import type { EncryptedValue } from '../../../sales-channels/token-encryption.service';
 import { SalesChannelCode } from '../../../sales-channels/enums/sales-channel.enums';
 @Entity('oauth_authorization_states')
 export class OAuthAuthorizationState {
@@ -22,6 +23,8 @@ export class OAuthAuthorizationState {
   @Column({ name: 'expires_at', type: 'timestamptz' }) expiresAt: Date;
   @Column({ name: 'consumed_at', type: 'timestamptz', nullable: true })
   consumedAt: Date | null;
+  @Column({ name: 'encrypted_code_verifier', type: 'jsonb', nullable: true })
+  encryptedCodeVerifier: EncryptedValue | null;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 }

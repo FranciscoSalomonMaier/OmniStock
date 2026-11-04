@@ -1,3 +1,6 @@
+import { createHash } from 'crypto';
+import { ConfigService } from '@nestjs/config';
+import { TokenEncryptionService } from '../../sales-channels/token-encryption.service';
 import { Logger } from '@nestjs/common';
 import { MercadoLivreIntegrationService } from './mercado-livre-integration.service';
 import { MarketplaceConnectorError } from '../core/marketplace-errors';
@@ -12,7 +15,20 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
   });
   afterEach(() => jest.restoreAllMocks());
   function setup() {
+    const encryption = new TokenEncryptionService(
+      new ConfigService({
+        MARKETPLACE_TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString(
+          'base64',
+        ),
+      }),
+    );
+    const verifier = 'v'.repeat(43);
+    const states = {
+      create: jest.fn((value: unknown) => value),
+      save: jest.fn().mockResolvedValue(undefined),
+    };
     const oauth = {
+      encryptedCodeVerifier: encryption.encrypt(verifier),
       companyId: 'company',
       connectionId: 'connection',
       userId: 'user',
@@ -34,6 +50,10 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
       update: jest.fn().mockResolvedValue({}),
     };
     const connector = {
+      getAuthorizationUrl: jest.fn().mockResolvedValue({
+        url: 'https://auth.example.test',
+        expiresAt: new Date(),
+      }),
       exchangeAuthorizationCode: jest.fn().mockResolvedValue({
         accessToken: secret,
         refreshToken: secret,
@@ -52,13 +72,14 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
       save: jest.fn().mockResolvedValue(oauth),
     };
     const args = [
-      {},
+      states,
       connections,
       { transaction: async (fn: (m: unknown) => unknown) => await fn(manager) },
       connector,
       api,
       credentials,
       { getOrThrow: () => 'https://app.example.test' },
+      encryption,
     ] as unknown as ConstructorParameters<
       typeof MercadoLivreIntegrationService
     >;
@@ -69,8 +90,64 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
       api,
       credentials,
       query,
+      states,
+      encryption,
+      verifier,
+      oauth,
+      manager,
     };
   }
+  it('stores only the encrypted verifier and sends its S256 challenge', async () => {
+    const x = setup();
+    const result = await x.service.authorize('company', 'connection', 'user');
+    const stored = x.states.create.mock.calls[0][0] as {
+      encryptedCodeVerifier: Parameters<TokenEncryptionService['decrypt']>[0];
+      stateHash: string;
+    };
+    const verifier = x.encryption.decrypt(stored.encryptedCodeVerifier);
+    expect(verifier).toMatch(/^[A-Za-z0-9_-]{43}$/);
+    const challenge = createHash('sha256').update(verifier).digest('base64url');
+    expect(x.connector.getAuthorizationUrl).toHaveBeenCalledWith(
+      expect.objectContaining({ codeChallenge: challenge }),
+    );
+    expect(JSON.stringify(stored)).not.toContain(verifier);
+    expect(JSON.stringify(result)).not.toContain(verifier);
+    await x.service.authorize('company', 'connection', 'user');
+    const next = x.states.create.mock.calls[1][0] as typeof stored;
+    expect(x.encryption.decrypt(next.encryptedCodeVerifier)).not.toBe(verifier);
+  });
+  it('uses the bound verifier once and clears it in the state transaction', async () => {
+    const x = setup();
+    await x.service.callback(secret, secret, undefined);
+    expect(x.connector.exchangeAuthorizationCode).toHaveBeenCalledWith(
+      expect.objectContaining({ codeVerifier: x.verifier }),
+    );
+    expect(x.manager.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        encryptedCodeVerifier: null,
+        consumedAt: expect.any(Date) as unknown,
+      }),
+    );
+    const replay = await x.service.callback(secret, secret, undefined);
+    expect(replay).toContain('MERCADO_LIVRE_INVALID_STATE');
+    expect(x.connector.exchangeAuthorizationCode).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(log.mock.calls)).not.toContain(x.verifier);
+  });
+  it.each(['legacy', 'expired', 'tampered'])(
+    'rejects %s state without requesting a token',
+    async (kind) => {
+      const x = setup();
+      if (kind === 'legacy')
+        x.oauth.encryptedCodeVerifier =
+          null as unknown as typeof x.oauth.encryptedCodeVerifier;
+      if (kind === 'expired') x.oauth.expiresAt = new Date(0);
+      if (kind === 'tampered')
+        x.oauth.encryptedCodeVerifier.ciphertext = 'invalid';
+      const url = await x.service.callback(secret, secret, undefined);
+      expect(url).toContain('MERCADO_LIVRE_INVALID_STATE');
+      expect(x.connector.exchangeAuthorizationCode).not.toHaveBeenCalled();
+    },
+  );
   it('connects successfully without logging tokens and clears prior errors', async () => {
     const { service, connections } = setup();
     const url = await service.callback(secret, secret, undefined);

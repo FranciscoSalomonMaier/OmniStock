@@ -84,6 +84,9 @@ export class MercadoLivreConnector implements MarketplaceConnector {
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
       state: input.state,
+      ...(input.codeChallenge
+        ? { code_challenge: input.codeChallenge, code_challenge_method: 'S256' }
+        : {}),
     }).toString();
     return Promise.resolve({
       url: url.toString(),
@@ -95,7 +98,10 @@ export class MercadoLivreConnector implements MarketplaceConnector {
     input: ExchangeAuthorizationCodeInput,
   ): Promise<AuthorizationResult> {
     this.ensureEnabled();
-    const token = await this.api.exchangeAuthorizationCode(input.code);
+    const token = await this.api.exchangeAuthorizationCode(
+      input.code,
+      input.codeVerifier,
+    );
     return {
       externalAccountId: String(token.user_id),
       externalAccountName: null,

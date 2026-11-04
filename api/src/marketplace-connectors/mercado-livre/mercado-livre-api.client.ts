@@ -30,9 +30,10 @@ export class MercadoLivreApiClient {
     this.redirectUri = config.get<string>('MERCADO_LIVRE_REDIRECT_URI') ?? '';
     this.timeout = config.get<number>('MERCADO_LIVRE_HTTP_TIMEOUT_MS') ?? 10000;
   }
-  exchangeAuthorizationCode(code: string) {
+  exchangeAuthorizationCode(code: string, codeVerifier?: string) {
     return this.token({
       grant_type: 'authorization_code',
+      ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
       client_id: this.clientId,
       client_secret: this.clientSecret,
       code,
@@ -272,7 +273,9 @@ export class MercadoLivreApiClient {
         ).entries(),
       )
         .filter(([key]) =>
-          ['client_secret', 'refresh_token', 'code'].includes(key),
+          ['client_secret', 'refresh_token', 'code', 'code_verifier'].includes(
+            key,
+          ),
         )
         .map(([, value]) => value),
     ].filter((value): value is string => Boolean(value));

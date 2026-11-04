@@ -30,7 +30,13 @@ let db, created = false;
     });
     await db.initialize();
     await db.runMigrations();
-    await db.undoLastMigration();
+    for (let i = 0; i < 20; i++) {
+      const [last] = await db.query('SELECT name FROM migrations ORDER BY id DESC LIMIT 1');
+      if (!last) throw Error('Barcode migration not found');
+      await db.undoLastMigration();
+      if (last.name === 'AllowSharedProductBarcodes1800000000600') break;
+      if (i === 19) throw Error('Barcode rollback limit exceeded');
+    }
     const columns = await db.query("SELECT column_name, data_type, udt_name FROM information_schema.columns WHERE table_name='companies' AND is_nullable='NO' AND column_default IS NULL");
     const values = {};
     for (const c of columns) {

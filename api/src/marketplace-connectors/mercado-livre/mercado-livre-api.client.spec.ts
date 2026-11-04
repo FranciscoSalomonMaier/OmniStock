@@ -10,6 +10,46 @@ describe('MercadoLivreApiClient provider errors', () => {
   );
   afterEach(() => jest.restoreAllMocks());
 
+  it('sends the verifier only in the token exchange body', async () => {
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          access_token: 'test',
+          expires_in: 3600,
+          user_id: 1,
+        }),
+      ),
+    );
+    await client.exchangeAuthorizationCode('auth-code', 'private-verifier');
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).not.toContain('private-verifier');
+    if (typeof init?.body !== 'string') throw new Error('Expected form body');
+    const body = new URLSearchParams(init.body);
+    expect(body.get('code_verifier')).toBe('private-verifier');
+    expect(body.get('grant_type')).toBe('authorization_code');
+    expect(body.get('code')).toBe('auth-code');
+  });
+  it('redacts the verifier even if the provider echoes it', async () => {
+    jest.spyOn(global, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: 'invalid_grant',
+          message: 'private-verifier private-secret auth-code',
+        }),
+        { status: 400 },
+      ),
+    );
+    try {
+      await client.exchangeAuthorizationCode('auth-code', 'private-verifier');
+      throw new Error('Expected rejection');
+    } catch (error) {
+      const message = (error as Error).message;
+      expect(message).toContain('invalid_grant');
+      expect(message).not.toContain('private-verifier');
+      expect(message).not.toContain('private-secret');
+      expect(message).not.toContain('auth-code');
+    }
+  });
   it('preserves HTTP status, provider code and validation causes without credentials', async () => {
     jest.spyOn(global, 'fetch').mockResolvedValue(
       new Response(

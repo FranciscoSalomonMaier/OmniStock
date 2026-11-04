@@ -102,6 +102,7 @@ export interface AuthorizationUrlResult {
   stateIdentifier: string;
 }
 export interface ExchangeAuthorizationCodeInput {
+  codeVerifier?: string;
   context: ConnectorContext;
   code: string;
   redirectUri: string;

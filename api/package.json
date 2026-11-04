@@ -31,7 +31,8 @@
     "test:webhooks:integration": "node test/webhooks/webhooks.integration.cjs",
     "test:fiscal:integration": "node test/fiscal/fiscal.integration.cjs",
     "test:auth:integration": "node test/auth/sessions.integration.cjs",
-    "test:products:integration": "node test/products/barcodes.integration.cjs"
+    "test:products:integration": "node test/products/barcodes.integration.cjs",
+    "test:oauth:integration": "node test/oauth/pkce.integration.cjs"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.5",

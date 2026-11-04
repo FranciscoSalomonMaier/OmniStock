@@ -19,7 +19,7 @@ describe('MercadoLivreConnector', () => {
       connectionId: 'x',
       redirectUri: '',
       state: 'state-value',
-      codeChallenge: null,
+      codeChallenge: 'challenge-value',
     });
     const url = new URL(result.url);
     expect(url.origin).toBe('https://auth.mercadolivre.com.br');
@@ -27,6 +27,8 @@ describe('MercadoLivreConnector', () => {
     expect(url.searchParams.get('client_id')).toBe('123');
     expect(url.searchParams.get('state')).toBe('state-value');
     expect(result.url).not.toContain('client_secret');
+    expect(url.searchParams.get('code_challenge')).toBe('challenge-value');
+    expect(url.searchParams.get('code_challenge_method')).toBe('S256');
   });
   it('declara operações reais implementadas', () => {
     const capabilities = connector.getCapabilities();
