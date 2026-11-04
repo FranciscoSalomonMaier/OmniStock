@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes, randomUUID } from 'crypto';
@@ -13,9 +13,25 @@ import {
 import { MercadoLivreConnector } from './mercado-livre.connector';
 import { MercadoLivreApiClient } from './mercado-livre-api.client';
 import { OAuthAuthorizationState } from './entities/oauth-authorization-state.entity';
+type CallbackStage =
+  | 'VALIDATE_STATE'
+  | 'LOAD_CONNECTION'
+  | 'TOKEN_EXCHANGE'
+  | 'ACCOUNT_LOOKUP'
+  | 'SAVE_CREDENTIALS'
+  | 'SAVE_CONNECTION';
+const callbackCodes: Record<CallbackStage, string> = {
+  VALIDATE_STATE: 'MERCADO_LIVRE_INVALID_STATE',
+  LOAD_CONNECTION: 'MERCADO_LIVRE_CONNECTION_LOOKUP_FAILED',
+  TOKEN_EXCHANGE: 'MERCADO_LIVRE_TOKEN_EXCHANGE_FAILED',
+  ACCOUNT_LOOKUP: 'MERCADO_LIVRE_ACCOUNT_LOOKUP_FAILED',
+  SAVE_CREDENTIALS: 'MERCADO_LIVRE_CREDENTIAL_SAVE_FAILED',
+  SAVE_CONNECTION: 'MERCADO_LIVRE_CONNECTION_SAVE_FAILED',
+};
 @Injectable()
 export class MercadoLivreIntegrationService {
   private readonly frontendUrl: string;
+  private readonly logger = new Logger(MercadoLivreIntegrationService.name);
   constructor(
     @InjectRepository(OAuthAuthorizationState)
     private readonly states: Repository<OAuthAuthorizationState>,
@@ -59,15 +75,31 @@ export class MercadoLivreIntegrationService {
     state: string | undefined,
     error: string | undefined,
   ) {
-    if (error) return this.errorRedirect('MERCADO_LIVRE_AUTHORIZATION_DENIED');
+    const diagnosticId = randomUUID();
+    if (error)
+      return this.callbackFailure(
+        'MERCADO_LIVRE_AUTHORIZATION_DENIED',
+        'VALIDATE_STATE',
+        diagnosticId,
+      );
     if (!code || !state)
-      return this.errorRedirect('MERCADO_LIVRE_INVALID_STATE');
+      return this.callbackFailure(
+        callbackCodes.VALIDATE_STATE,
+        'VALIDATE_STATE',
+        diagnosticId,
+      );
     let oauth: OAuthAuthorizationState;
     try {
       oauth = await this.consumeState(state);
-    } catch {
-      return this.errorRedirect('MERCADO_LIVRE_INVALID_STATE');
+    } catch (error: unknown) {
+      return this.callbackFailure(
+        callbackCodes.VALIDATE_STATE,
+        'VALIDATE_STATE',
+        diagnosticId,
+        error,
+      );
     }
+    let stage: CallbackStage = 'LOAD_CONNECTION';
     try {
       const connection = await this.connection(
         oauth.companyId,
@@ -78,21 +110,25 @@ export class MercadoLivreIntegrationService {
         connectionId: oauth.connectionId,
         channelCode: SalesChannelCode.MERCADO_LIVRE,
         externalAccountId: connection.externalAccountId,
-        correlationId: randomUUID(),
+        correlationId: diagnosticId,
         operationId: randomUUID(),
         locale: 'pt-BR',
         metadata: {},
       };
+      stage = 'TOKEN_EXCHANGE';
       const authorization = await this.connector.exchangeAuthorizationCode({
         context,
         code,
         redirectUri: '',
       });
+      stage = 'ACCOUNT_LOOKUP';
       const account = await this.api.getCurrentUser(authorization.accessToken);
+      stage = 'SAVE_CREDENTIALS';
       await this.credentialProvider.save(oauth.companyId, oauth.connectionId, {
         accessToken: authorization.accessToken,
         refreshToken: authorization.refreshToken ?? undefined,
       });
+      stage = 'SAVE_CONNECTION';
       connection.externalAccountId = String(account.id);
       connection.externalAccountName = account.nickname;
       connection.status = SalesChannelConnectionStatus.CONNECTED;
@@ -110,8 +146,30 @@ export class MercadoLivreIntegrationService {
       };
       await this.connections.save(connection);
       return `${this.frontendUrl}${oauth.returnPath}?status=success&connectionId=${connection.id}`;
-    } catch {
-      return this.errorRedirect('MERCADO_LIVRE_TOKEN_EXCHANGE_FAILED');
+    } catch (error: unknown) {
+      const failureCode = callbackCodes[stage];
+      const redirect = this.callbackFailure(
+        failureCode,
+        stage,
+        diagnosticId,
+        error,
+      );
+      try {
+        await this.connections.update(
+          { id: oauth.connectionId, companyId: oauth.companyId },
+          {
+            lastErrorAt: new Date(),
+            lastErrorCode: failureCode,
+            lastErrorMessage: `Falha na conexão OAuth. Etapa: ${stage}. Diagnóstico: ${diagnosticId}.`,
+          },
+        );
+      } catch {
+        this.logger.warn({
+          event: 'mercado_livre.oauth.diagnostic_save_failed',
+          diagnosticId,
+        });
+      }
+      return redirect;
     }
   }
   async account(companyId: string, connectionId: string) {
@@ -223,7 +281,28 @@ export class MercadoLivreIntegrationService {
   private hash(value: string) {
     return createHash('sha256').update(value).digest('hex');
   }
-  private errorRedirect(code: string) {
-    return `${this.frontendUrl}/integrations/mercado-livre/callback?status=error&code=${encodeURIComponent(code)}`;
+  private callbackFailure(
+    code: string,
+    stage: CallbackStage,
+    diagnosticId: string,
+    error?: unknown,
+  ) {
+    // Deliberately exclude exception messages, stacks, causes, provider bodies and URLs.
+    this.logger.warn({
+      event: 'mercado_livre.oauth.failed',
+      diagnosticId,
+      stage,
+      code,
+      providerStatus:
+        error instanceof MarketplaceConnectorError
+          ? error.providerStatus
+          : null,
+      connectorCode:
+        error instanceof MarketplaceConnectorError ? error.code : null,
+    });
+    return this.errorRedirect(code, diagnosticId);
+  }
+  private errorRedirect(code: string, diagnosticId: string) {
+    return `${this.frontendUrl}/integrations/mercado-livre/callback?status=error&code=${encodeURIComponent(code)}&diagnosticId=${diagnosticId}`;
   }
 }

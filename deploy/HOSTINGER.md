@@ -137,3 +137,23 @@ e código de barras, sem alterar dados. SKUs continuam exclusivos por empresa.
 Buscas pelo mesmo código podem retornar vários produtos ou kits, exigindo seleção
 explícita. A composição dos kits e os vínculos de anúncios continuam usando IDs
 e SKUs. O rollback falha se houver códigos repetidos; não elimina registros.
+
+## Diagnóstico da conexão OAuth do Mercado Livre
+
+O callback registra `mercado_livre.oauth.failed` com `diagnosticId`, etapa,
+código interno e, quando disponível, status HTTP e código normalizado do conector.
+Não registra mensagens brutas, stacks, tokens, Client Secret, código de autorização,
+state ou corpos de respostas. O resumo também é salvo no último erro da conexão.
+Falha ao salvar esse resumo registra somente `mercado_livre.oauth.diagnostic_save_failed`
+e o mesmo identificador. A tela de retorno mantém o resultado após limpar a URL.
+
+Após publicar API e frontend, inicie uma nova autorização e acompanhe na VPS:
+
+```sh
+./deploy/compose.sh logs -f --tail=50 api
+```
+
+Localize o evento pelo identificador exibido na tela. Etapas: `VALIDATE_STATE`,
+`LOAD_CONNECTION`, `TOKEN_EXCHANGE`, `ACCOUNT_LOOKUP`, `SAVE_CREDENTIALS` e
+`SAVE_CONNECTION`. Não reutilize URLs ou códigos de tentativas anteriores.
+Este ajuste não requer migration e não resolve automaticamente a causa da falha.
