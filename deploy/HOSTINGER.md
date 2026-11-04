@@ -177,3 +177,15 @@ Teste isolado: `OAUTH_TEST_DATABASE_URL` deve apontar para PostgreSQL local
 descartável e `npm run test:oauth:integration` deve ser executado em api/. O teste
 cria/remove somente seu banco aleatório, valida migrações e concorrência e usa
 respostas simuladas do Mercado Livre, sem solicitar tokens reais.
+
+## Mensagens públicas da conexão
+
+Falhas internas de conexão usam o código público `CONNECTION_UNAVAILABLE` e uma
+mensagem orientada ao usuário, com código de atendimento. A URL de retorno não
+inclui etapas ou códigos técnicos. Cancelamento e expiração recebem orientações
+específicas. Diagnósticos técnicos continuam nos logs, sem mensagens brutas ou
+credenciais. As respostas de consulta de conexões também filtram registros de
+erros antigos; nenhuma limpeza ou migration de dados é necessária.
+Os endpoints de autorização, consulta da conta e validação da conexão protegem
+falhas internas nas respostas HTTP. Erros de validação de entrada e de permissão
+da aplicação mantêm seu tratamento. Reautorização necessária orienta reconectar.

@@ -35,7 +35,7 @@ const admin=new Client({connectionString:url});let db,created=false;
  // Migration preserves legacy rows; a pre-PKCE attempt must require reauthorization.
  await db.undoLastMigration();
  const legacy='legacy-state';await create('oauth_authorization_states',{state_hash:createHash('sha256').update(legacy).digest('hex'),company_id:company.id,connection_id:connection.id,user_id:user.id,channel_code:'MERCADO_LIVRE',expires_at:new Date(Date.now()+60000),return_path:'/integrations/mercado-livre/callback'});
- await db.runMigrations();assert.match(await service.callback('synthetic-code',legacy),/MERCADO_LIVRE_INVALID_STATE/);assert.equal(exchanges,0);
+ await db.runMigrations();assert.match(await service.callback('synthetic-code',legacy),/AUTHORIZATION_EXPIRED/);assert.equal(exchanges,0);
  const result=await service.authorize(company.id,connection.id,user.id),auth=new URL(result.authorizationUrl),state=auth.searchParams.get('state');
  const row=await states.findOneByOrFail({stateHash:createHash('sha256').update(state).digest('hex')});
  expectedVerifier=encryption.decrypt(row.encryptedCodeVerifier);

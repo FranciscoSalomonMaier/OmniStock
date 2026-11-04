@@ -129,7 +129,7 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
       }),
     );
     const replay = await x.service.callback(secret, secret, undefined);
-    expect(replay).toContain('MERCADO_LIVRE_INVALID_STATE');
+    expect(replay).toContain('AUTHORIZATION_EXPIRED');
     expect(x.connector.exchangeAuthorizationCode).toHaveBeenCalledTimes(1);
     expect(JSON.stringify(log.mock.calls)).not.toContain(x.verifier);
   });
@@ -144,7 +144,11 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
       if (kind === 'tampered')
         x.oauth.encryptedCodeVerifier.ciphertext = 'invalid';
       const url = await x.service.callback(secret, secret, undefined);
-      expect(url).toContain('MERCADO_LIVRE_INVALID_STATE');
+      expect(url).toContain(
+        kind === 'tampered'
+          ? 'CONNECTION_UNAVAILABLE'
+          : 'AUTHORIZATION_EXPIRED',
+      );
       expect(x.connector.exchangeAuthorizationCode).not.toHaveBeenCalled();
     },
   );
@@ -187,6 +191,14 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
       const url = await x.service.callback(secret, secret, undefined);
       const params = new URL(url).searchParams;
       expect(params.get('status')).toBe('error');
+      expect(params.get('code')).toBe('CONNECTION_UNAVAILABLE');
+      expect(url).not.toContain(stage);
+      const saved = x.connections.update.mock.calls[0] as unknown as [
+        unknown,
+        { lastErrorMessage: string },
+      ];
+      expect(saved[1].lastErrorMessage).not.toContain(stage);
+      expect(saved[1].lastErrorMessage).not.toContain('OAuth');
       expect(params.get('diagnosticId')).toMatch(/^[0-9a-f-]{36}$/);
       expect(log).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -198,7 +210,11 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
       );
       expect(x.connections.update).toHaveBeenCalledWith(
         { id: 'connection', companyId: 'company' },
-        expect.objectContaining({ lastErrorCode: params.get('code') }),
+        expect.objectContaining({
+          lastErrorMessage: expect.stringContaining(
+            'Código de atendimento:',
+          ) as unknown,
+        }),
       );
       expect(
         JSON.stringify(log.mock.calls) +
@@ -230,14 +246,14 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
     x.connections.update.mockRejectedValueOnce(new Error(secret));
     await expect(
       x.service.callback(secret, secret, undefined),
-    ).resolves.toContain('MERCADO_LIVRE_ACCOUNT_LOOKUP_FAILED');
+    ).resolves.toContain('CONNECTION_UNAVAILABLE');
     expect(JSON.stringify(log.mock.calls)).not.toContain(secret);
   });
   it('rejects invalid states before exchanging a code', async () => {
     const x = setup();
     x.query.getOne.mockResolvedValueOnce(null);
     const url = await x.service.callback(secret, secret, undefined);
-    expect(url).toContain('MERCADO_LIVRE_INVALID_STATE');
+    expect(url).toContain('AUTHORIZATION_EXPIRED');
     expect(x.connector.exchangeAuthorizationCode).not.toHaveBeenCalled();
     expect(x.connections.update).not.toHaveBeenCalled();
     expect(JSON.stringify(log.mock.calls)).not.toContain(secret);
@@ -245,7 +261,7 @@ describe('Mercado Livre OAuth callback diagnostics', () => {
   it('does not log incoming authorization errors', async () => {
     const x = setup();
     const url = await x.service.callback(undefined, undefined, secret);
-    expect(url).toContain('MERCADO_LIVRE_AUTHORIZATION_DENIED');
+    expect(url).toContain('AUTHORIZATION_CANCELLED');
     expect(JSON.stringify(log.mock.calls) + url).not.toContain(secret);
   });
 });

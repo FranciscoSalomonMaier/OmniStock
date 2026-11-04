@@ -113,7 +113,7 @@ export function IntegrationDetailsPage() {
           </p>
           {data.lastError && (
             <p className="form-error">
-              {data.lastError.code}: {data.lastError.message}
+              {data.lastError.message}
             </p>
           )}
           {descriptor && (

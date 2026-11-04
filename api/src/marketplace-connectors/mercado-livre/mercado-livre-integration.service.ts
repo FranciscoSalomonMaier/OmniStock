@@ -4,6 +4,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { DataSource, Repository } from 'typeorm';
 import { MarketplaceCredentialProvider } from '../core/marketplace-credential.provider';
+import {
+  publicConnectionError,
+  connectionUnavailableMessage,
+} from '../core/connection-public-error';
 import { MarketplaceConnectorError } from '../core/marketplace-errors';
 import { SalesChannelConnection } from '../../sales-channels/entities/sales-channel-connection.entity';
 import {
@@ -100,7 +104,10 @@ export class MercadoLivreIntegrationService {
       oauth = await this.consumeState(state);
     } catch (error: unknown) {
       return this.callbackFailure(
-        callbackCodes.VALIDATE_STATE,
+        error instanceof MarketplaceConnectorError &&
+          error.code === 'VALIDATION_ERROR'
+          ? callbackCodes.VALIDATE_STATE
+          : 'MERCADO_LIVRE_STATE_VALIDATION_FAILED',
         'VALIDATE_STATE',
         diagnosticId,
         error,
@@ -168,7 +175,7 @@ export class MercadoLivreIntegrationService {
           {
             lastErrorAt: new Date(),
             lastErrorCode: failureCode,
-            lastErrorMessage: `Falha na conexão OAuth. Etapa: ${stage}. Diagnóstico: ${diagnosticId}.`,
+            lastErrorMessage: `${connectionUnavailableMessage} Código de atendimento: ${diagnosticId}.`,
           },
         );
       } catch {
@@ -269,10 +276,16 @@ export class MercadoLivreIntegrationService {
         );
       // Pre-PKCE attempts cannot be completed safely: require a new authorization.
       if (!value.encryptedCodeVerifier)
-        throw new Error('PKCE verifier unavailable');
+        throw new MarketplaceConnectorError(
+          'VALIDATION_ERROR',
+          'PKCE verifier unavailable',
+        );
       const codeVerifier = this.encryption.decrypt(value.encryptedCodeVerifier);
       if (!/^[A-Za-z0-9._~-]{43,128}$/.test(codeVerifier))
-        throw new Error('Invalid PKCE verifier');
+        throw new MarketplaceConnectorError(
+          'VALIDATION_ERROR',
+          'Invalid PKCE verifier',
+        );
       value.consumedAt = new Date();
       value.encryptedCodeVerifier = null;
       await manager.save(value);
@@ -316,7 +329,7 @@ export class MercadoLivreIntegrationService {
       connectorCode:
         error instanceof MarketplaceConnectorError ? error.code : null,
     });
-    return this.errorRedirect(code, diagnosticId);
+    return this.errorRedirect(publicConnectionError(code).code, diagnosticId);
   }
   private errorRedirect(code: string, diagnosticId: string) {
     return `${this.frontendUrl}/integrations/mercado-livre/callback?status=error&code=${encodeURIComponent(code)}&diagnosticId=${diagnosticId}`;

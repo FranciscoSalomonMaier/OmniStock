@@ -1,3 +1,4 @@
+import { publicConnectionLastError } from '../marketplace-connectors/core/connection-public-error';
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -176,11 +177,11 @@ export class SalesChannelsService {
       lastSyncAt: x.lastSyncAt,
       lastSuccessfulSyncAt: x.lastSuccessfulSyncAt,
       lastError: x.lastErrorAt
-        ? {
-            at: x.lastErrorAt,
-            code: x.lastErrorCode,
-            message: x.lastErrorMessage,
-          }
+        ? publicConnectionLastError(
+            x.lastErrorAt,
+            x.lastErrorCode,
+            x.lastErrorMessage,
+          )
         : null,
       hasAccessToken: Boolean(credential?.encryptedAccessToken),
       hasRefreshToken: Boolean(credential?.encryptedRefreshToken),

@@ -1,3 +1,4 @@
+import { ConnectionPublicExceptionFilter } from '../marketplace-connectors/core/connection-public-exception.filter';
 import {
   Body,
   Controller,
@@ -7,6 +8,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
@@ -85,6 +87,7 @@ export class SalesChannelConnectionsController {
     return this.service.rename(m.companyId, id, u.id, dto);
   }
   @Post(':id/validate')
+  @UseFilters(ConnectionPublicExceptionFilter)
   @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER)
   @ApiOperation({
     summary: 'Valida uma conexão por meio do conector configurado',

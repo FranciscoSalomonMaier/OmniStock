@@ -2,20 +2,18 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 const messages: Record<string, string> = {
-  MERCADO_LIVRE_AUTHORIZATION_DENIED: "A autorização foi cancelada ou negada.",
+  AUTHORIZATION_CANCELLED:
+    "A autorização foi cancelada ou negada. Tente conectar novamente.",
+  AUTHORIZATION_EXPIRED:
+    "A tentativa de conexão expirou ou já foi utilizada. Inicie uma nova conexão pelas integrações.",
+  // Older callback links may remain in history; never show their technical details.
+  MERCADO_LIVRE_AUTHORIZATION_DENIED:
+    "A autorização foi cancelada ou negada. Tente conectar novamente.",
   MERCADO_LIVRE_INVALID_STATE:
     "A tentativa de conexão expirou ou já foi utilizada. Inicie uma nova conexão pelas integrações.",
-  MERCADO_LIVRE_CONNECTION_LOOKUP_FAILED:
-    "Não foi possível localizar a conexão do Mercado Livre.",
-  MERCADO_LIVRE_TOKEN_EXCHANGE_FAILED:
-    "Não foi possível obter o token de acesso do Mercado Livre.",
-  MERCADO_LIVRE_ACCOUNT_LOOKUP_FAILED:
-    "O token foi obtido, mas não foi possível consultar a conta no Mercado Livre.",
-  MERCADO_LIVRE_CREDENTIAL_SAVE_FAILED:
-    "Não foi possível proteger e salvar as credenciais da conexão.",
-  MERCADO_LIVRE_CONNECTION_SAVE_FAILED:
-    "Não foi possível finalizar o registro da conexão.",
 };
+const unavailableMessage =
+  "Não foi possível concluir a conexão. Tente novamente. Se o problema persistir, entre em contato com o suporte e informe o código de atendimento.";
 export function MercadoLivreCallbackPage() {
   const [params, setParams] = useSearchParams();
   // Keep the outcome when sensitive query parameters are removed from history.
@@ -44,12 +42,11 @@ export function MercadoLivreCallbackPage() {
       >
         {result.success
           ? "Conta do Mercado Livre conectada com sucesso."
-          : (messages[result.code] ??
-            "Não foi possível concluir a conexão com o Mercado Livre.")}
+          : (messages[result.code] ?? unavailableMessage)}
       </p>
       {!result.success && diagnosticId && (
         <p>
-          Identificador de diagnóstico: <code>{diagnosticId}</code>
+          Código de atendimento: <code>{diagnosticId}</code>
         </p>
       )}
       {connectionId ? (

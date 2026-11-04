@@ -1,3 +1,4 @@
+import { ConnectionPublicExceptionFilter } from '../core/connection-public-exception.filter';
 import {
   Body,
   Controller,
@@ -8,6 +9,7 @@ import {
   Query,
   Res,
   UseGuards,
+  UseFilters,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -42,6 +44,7 @@ export class MercadoLivreController {
     private readonly operations: MercadoLivreOperationsService,
   ) {}
   @Post('authorize')
+  @UseFilters(ConnectionPublicExceptionFilter)
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Company-Id', required: true })
   @UseGuards(JwtAuthGuard, CompanyGuard, CompanyRolesGuard)
@@ -63,6 +66,7 @@ export class MercadoLivreController {
     return res.redirect(await this.service.callback(code, state, error));
   }
   @Get('connections/:connectionId/account')
+  @UseFilters(ConnectionPublicExceptionFilter)
   @ApiBearerAuth()
   @ApiHeader({ name: 'X-Company-Id', required: true })
   @UseGuards(JwtAuthGuard, CompanyGuard, CompanyRolesGuard)
