@@ -1,3 +1,4 @@
+import { ProductRemovalService } from './product-removal.service';
 import { ProductBundlesModule } from '../product_bundles/product_bundles.module';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -17,6 +18,11 @@ import { LocalStorageService } from './storage/local-storage.service';
     CompaniesModule,
   ],
   controllers: [ProductsController, CategoriesController],
-  providers: [ProductsService, CategoriesService, LocalStorageService],
+  providers: [
+    ProductRemovalService,
+    ProductsService,
+    CategoriesService,
+    LocalStorageService,
+  ],
 })
 export class ProductsModule {}

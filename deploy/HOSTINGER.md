@@ -189,3 +189,18 @@ erros antigos; nenhuma limpeza ou migration de dados é necessária.
 Os endpoints de autorização, consulta da conta e validação da conexão protegem
 falhas internas nas respostas HTTP. Erros de validação de entrada e de permissão
 da aplicação mantêm seu tratamento. Reautorização necessária orienta reconectar.
+
+## Remoção de produtos
+
+A listagem permite remover produtos para ADMIN, MANAGER e STOCKIST, após consulta
+de dependências e confirmação. Produtos usados em composições ativas são bloqueados
+antes da confirmação, com identificação dos kits. Retire o componente das
+composições ou remova primeiro os kits que o usam. O DELETE repete a consulta
+na transação usando o mesmo lock da composição e restringe os dados à empresa.
+Saldo não zerado, movimentos, reservas, pedidos, vínculos de anúncios, dados fiscais,
+sincronizações ou processamento pendente impedem a exclusão. Nesses casos, inative
+o cadastro. Nenhum histórico é apagado para forçar exclusão. Kits sem tais
+dependências podem ser removidos com sua própria composição; componentes permanecem.
+Arquivos de imagens são removidos somente após confirmação da transação.
+Não requer migration. Teste isolado: `PRODUCT_REMOVAL_TEST_DATABASE_URL` e
+`npm run test:products:removal` em api/, com PostgreSQL local descartável.

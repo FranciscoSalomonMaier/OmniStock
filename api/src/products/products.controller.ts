@@ -1,8 +1,10 @@
+import { ProductRemovalService } from './product-removal.service';
 import {
   BadRequestException,
   Body,
   Controller,
   Delete,
+  ParseUUIDPipe,
   Get,
   HttpCode,
   HttpStatus,
@@ -45,7 +47,10 @@ import { ProductsService } from './products.service';
 @UseGuards(JwtAuthGuard, CompanyGuard, CompanyRolesGuard)
 @Controller('products')
 export class ProductsController {
-  constructor(private readonly service: ProductsService) {}
+  constructor(
+    private readonly service: ProductsService,
+    private readonly removal: ProductRemovalService,
+  ) {}
   @Post()
   @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER, CompanyRole.STOCKIST)
   create(
@@ -66,6 +71,24 @@ export class ProductsController {
     @Param('id') id: string,
   ) {
     return this.service.get(m.companyId, id, m.role);
+  }
+  @Get(':id/removal-check')
+  @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER, CompanyRole.STOCKIST)
+  removalCheck(
+    @CurrentMembership() m: CompanyMember,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.removal.check(m.companyId, id);
+  }
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER, CompanyRole.STOCKIST)
+  async removeProduct(
+    @CurrentMembership() m: CompanyMember,
+    @CurrentUser() u: User,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    await this.removal.remove(m.companyId, id, u.id);
   }
   @Patch(':id')
   @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER, CompanyRole.STOCKIST)

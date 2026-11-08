@@ -32,6 +32,7 @@
     "test:fiscal:integration": "node test/fiscal/fiscal.integration.cjs",
     "test:auth:integration": "node test/auth/sessions.integration.cjs",
     "test:products:integration": "node test/products/barcodes.integration.cjs",
+    "test:products:removal": "node test/products/removal.integration.cjs",
     "test:oauth:integration": "node test/oauth/pkce.integration.cjs"
   },
   "dependencies": {

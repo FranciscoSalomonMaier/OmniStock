@@ -94,3 +94,15 @@
   opacity: .6;
   cursor: not-allowed;
 }
+
+.product-name-link { color: inherit; text-decoration: none; }
+.product-name-link:hover { color: #237447; text-decoration: underline; }
+.product-name-link:focus-visible { outline: 3px solid #a4cfb3; outline-offset: 3px; border-radius: 3px; }
+
+.product-remove-button { border: 1px solid #e8b7b7; border-radius: 8px; padding: .45rem .75rem; color: #a52626; background: #fff; font: inherit; cursor: pointer; }
+.product-remove-button:hover:not(:disabled) { background: #fff0f0; }
+.product-remove-button:focus-visible { outline: 3px solid #e8b7b7; outline-offset: 2px; }
+.product-removal-dialog .confirm-modal .form-actions button:last-child { background: #b52b2b; color: #fff; }
+.product-removal-dialog .confirm-modal .form-actions button:last-child:hover:not(:disabled) { background: #932020; }
+
+.product-removal-error #error-message { white-space: pre-line; }
