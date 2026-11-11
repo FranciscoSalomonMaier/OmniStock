@@ -3,12 +3,14 @@ export function ErrorDialog({
   open,
   title,
   message,
+  reasons,
   fieldErrors,
   onClose,
 }: {
   open: boolean;
   title: string;
   message: string;
+  reasons?: string[];
   fieldErrors?: Record<string, string[]>;
   onClose: () => void;
 }) {
@@ -42,6 +44,13 @@ export function ErrorDialog({
       >
         <h2 id="error-title">{title}</h2>
         <p id="error-message">{message}</p>
+        {reasons && reasons.length > 0 && (
+          <ul className="error-reasons">
+            {reasons.map((reason, index) => (
+              <li key={`${reason}-${index}`}>{reason}</li>
+            ))}
+          </ul>
+        )}
         {fieldErrors && (
           <ul>
             {Object.values(fieldErrors)

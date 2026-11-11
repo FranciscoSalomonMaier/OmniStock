@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCompany } from "../../hooks/useCompany";
 import { productService } from "../../services/product.service";
+import { ApiError } from "../../services/api";
 import type { Category, Product } from "../../types/product";
 export function ProductsPage() {
   const { activeCompany } = useCompany();
@@ -24,26 +25,36 @@ function ProductsList() {
   const [checking, setChecking] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Product | null>(null);
-  const [removalError, setRemovalError] = useState("");
+  const [removalError, setRemovalError] = useState<{
+    message: string;
+    reasons: string[];
+  } | null>(null);
   async function requestRemoval(product: Product) {
     setChecking(product.id);
     try {
       const check = await productService.removalCheck(product.id);
       if (!check.allowed) {
-        setRemovalError(
-          [check.message, ...check.kits.map((k) => `${k.sku} — ${k.name}`)]
-            .filter(Boolean)
-            .join("\n"),
-        );
+        const reasons = [
+          ...(check.reasons ?? []),
+          ...check.kits.map((kit) => `Kit vinculado: ${kit.sku} — ${kit.name}`),
+        ];
+        setRemovalError({
+          message: reasons.length
+            ? "Este produto não pode ser removido pelos seguintes motivos:"
+            : (check.message ?? "Não foi possível remover o produto."),
+          reasons,
+        });
         return;
       }
       setRemoveTarget(product);
     } catch (e) {
-      setRemovalError(
-        e instanceof Error
-          ? e.message
-          : "Não foi possível verificar os vínculos do produto.",
-      );
+      setRemovalError({
+        message:
+          e instanceof Error
+            ? e.message
+            : "Não foi possível verificar os vínculos do produto.",
+        reasons: [],
+      });
     } finally {
       setChecking(null);
     }
@@ -58,9 +69,15 @@ function ProductsList() {
       else setRevision((r) => r + 1);
     } catch (e) {
       setRemoveTarget(null);
-      setRemovalError(
-        e instanceof Error ? e.message : "Não foi possível remover o produto.",
-      );
+      const reasons = e instanceof ApiError ? (e.reasons ?? []) : [];
+      setRemovalError({
+        message: reasons.length
+          ? "Este produto não pode ser removido pelos seguintes motivos:"
+          : e instanceof Error
+            ? e.message
+            : "Não foi possível remover o produto.",
+        reasons,
+      });
     } finally {
       setRemoving(false);
     }
@@ -237,10 +254,11 @@ function ProductsList() {
       </div>
       <div className="product-removal-error">
         <ErrorDialog
-          open={!!removalError}
+          open={removalError !== null}
           title="Não foi possível remover"
-          message={removalError}
-          onClose={() => setRemovalError("")}
+          message={removalError?.message ?? ""}
+          reasons={removalError?.reasons}
+          onClose={() => setRemovalError(null)}
         />
       </div>
     </main>

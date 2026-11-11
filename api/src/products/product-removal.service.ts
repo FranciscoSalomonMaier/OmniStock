@@ -43,36 +43,56 @@ export class ProductRemovalService {
       return {
         allowed: false,
         reason: 'USED_IN_KITS',
+        reasons: ['Vinculado a kits'],
         kits,
         message:
           'Este produto está vinculado a um ou mais kits. Remova primeiro os kits que o utilizam ou retire o produto da composição deles.',
       };
     // History is never removed or detached to force a product deletion.
-    const [usage] = await m.query<Array<{ used: boolean }>>(
-      `SELECT (
-        EXISTS(SELECT 1 FROM inventory_balances WHERE company_id=$1 AND product_id=$2 AND (current_quantity<>0 OR reserved_quantity<>0)) OR
-        EXISTS(SELECT 1 FROM inventory_movements WHERE company_id=$1 AND product_id=$2) OR
-        EXISTS(SELECT 1 FROM inventory_reservations WHERE company_id=$1 AND product_id=$2) OR
-        EXISTS(SELECT 1 FROM order_items WHERE company_id=$1 AND product_id=$2) OR
-        EXISTS(SELECT 1 FROM order_item_components WHERE company_id=$1 AND component_product_id=$2) OR
-        EXISTS(SELECT 1 FROM marketplace_stock_syncs WHERE company_id=$1 AND product_id=$2) OR
-        EXISTS(SELECT 1 FROM marketplace_stock_divergences WHERE company_id=$1 AND product_id=$2) OR
-        EXISTS(SELECT 1 FROM product_marketplace_links WHERE company_id=$1 AND product_id=$2) OR
-        EXISTS(SELECT 1 FROM product_fiscal_profiles WHERE company_id=$1 AND product_id=$2) OR
-        EXISTS(SELECT 1 FROM product_tax_rules WHERE company_id=$1 AND product_id=$2) OR
-        EXISTS(SELECT 1 FROM outbox_events WHERE company_id=$1 AND aggregate_id=$2 AND status IN ('PENDING','PROCESSING','RETRYING'))
-      ) AS used`,
+    const [usage] = await m.query<
+      Array<{
+        stock: boolean;
+        stockHistory: boolean;
+        orderHistory: boolean;
+        marketplaceLink: boolean;
+        syncHistory: boolean;
+        fiscalLink: boolean;
+        pendingProcessing: boolean;
+      }>
+    >(
+      `SELECT
+        EXISTS(SELECT 1 FROM inventory_balances WHERE company_id=$1 AND product_id=$2 AND (current_quantity<>0 OR reserved_quantity<>0)) AS "stock",
+        (EXISTS(SELECT 1 FROM inventory_movements WHERE company_id=$1 AND product_id=$2) OR
+         EXISTS(SELECT 1 FROM inventory_reservations WHERE company_id=$1 AND product_id=$2)) AS "stockHistory",
+        (EXISTS(SELECT 1 FROM order_items WHERE company_id=$1 AND product_id=$2) OR
+         EXISTS(SELECT 1 FROM order_item_components WHERE company_id=$1 AND component_product_id=$2)) AS "orderHistory",
+        EXISTS(SELECT 1 FROM product_marketplace_links WHERE company_id=$1 AND product_id=$2) AS "marketplaceLink",
+        (EXISTS(SELECT 1 FROM marketplace_stock_syncs WHERE company_id=$1 AND product_id=$2) OR
+         EXISTS(SELECT 1 FROM marketplace_stock_divergences WHERE company_id=$1 AND product_id=$2)) AS "syncHistory",
+        (EXISTS(SELECT 1 FROM product_fiscal_profiles WHERE company_id=$1 AND product_id=$2) OR
+         EXISTS(SELECT 1 FROM product_tax_rules WHERE company_id=$1 AND product_id=$2)) AS "fiscalLink",
+        EXISTS(SELECT 1 FROM outbox_events WHERE company_id=$1 AND aggregate_id=$2 AND status IN ('PENDING','PROCESSING','RETRYING')) AS "pendingProcessing"`,
       [companyId, productId],
     );
-    return usage.used
+    const reasons = [
+      usage.stock && 'Possui estoque',
+      usage.stockHistory && 'Possui movimentações ou reservas de estoque',
+      usage.orderHistory && 'Possui histórico de pedidos',
+      usage.marketplaceLink && 'Vinculado a anúncios',
+      usage.syncHistory && 'Possui histórico de sincronização',
+      usage.fiscalLink && 'Vínculo fiscal',
+      usage.pendingProcessing && 'Possui processamento pendente',
+    ].filter((reason): reason is string => Boolean(reason));
+    return reasons.length
       ? {
           allowed: false,
           reason: 'HAS_DEPENDENCIES',
+          reasons,
           kits: [],
           message:
             'Este produto possui estoque, histórico, vínculos ou processamento pendente e não pode ser removido. Preserve o cadastro e, se necessário, inative o produto.',
         }
-      : { allowed: true, reason: null, kits: [], message: null };
+      : { allowed: true, reason: null, reasons: [], kits: [], message: null };
   }
   check(companyId: string, productId: string) {
     return this.inspect(companyId, productId, this.db.manager);
@@ -94,6 +114,7 @@ export class ProductRemovalService {
           throw new ConflictException({
             code: check.reason,
             message: check.message,
+            reasons: check.reasons,
             kits: check.kits,
           });
         const files = await m.findBy(ProductImage, { companyId, productId });

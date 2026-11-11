@@ -20,16 +20,19 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code?: string;
   readonly fieldErrors?: Record<string, string[]>;
+  readonly reasons?: string[];
   constructor(
     message: string,
     status: number,
     code?: string,
     fieldErrors?: Record<string, string[]>,
+    reasons?: string[],
   ) {
     super(message);
     this.status = status;
     this.code = code;
     this.fieldErrors = fieldErrors;
+    this.reasons = reasons;
   }
 }
 
@@ -121,7 +124,14 @@ async function parseResponse<T>(response: Response): Promise<T> {
       data.errors !== null
         ? (data.errors as Record<string, string[]>)
         : undefined;
-    throw new ApiError(message, response.status, code, fieldErrors);
+    const reasons =
+      typeof data === "object" &&
+      data !== null &&
+      "reasons" in data &&
+      Array.isArray(data.reasons)
+        ? data.reasons.filter((reason): reason is string => typeof reason === "string")
+        : undefined;
+    throw new ApiError(message, response.status, code, fieldErrors, reasons);
   }
   return data as T;
 }

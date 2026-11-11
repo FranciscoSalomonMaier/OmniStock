@@ -106,3 +106,6 @@
 .product-removal-dialog .confirm-modal .form-actions button:last-child:hover:not(:disabled) { background: #932020; }
 
 .product-removal-error #error-message { white-space: pre-line; }
+.product-removal-error .confirm-modal { max-height: min(80vh, 560px); overflow-y: auto; }
+.product-removal-error .error-reasons { margin: .5rem 0 1rem; padding-left: 1.25rem; line-height: 1.5; }
+.product-removal-error .error-reasons li + li { margin-top: .4rem; }

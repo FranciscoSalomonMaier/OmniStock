@@ -18,6 +18,7 @@ export type ProductInput = Omit<
 export type ProductRemovalCheck = {
   allowed: boolean;
   reason: string | null;
+  reasons: string[];
   message: string | null;
   kits: { id: string; sku: string; name: string }[];
 };
