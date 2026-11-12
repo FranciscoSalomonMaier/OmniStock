@@ -145,7 +145,7 @@ function ProductsList() {
         <span className="role">{product.status}</span>
         {canWrite && (
           <>
-            <Link to={`/products/${product.id}/edit`}>Editar</Link>
+            <Link to={product.isBundle ? `/kits/${product.id}/edit` : `/products/${product.id}/edit`}>Editar</Link>
             <button
               className="product-remove-button"
               type="button"
@@ -164,11 +164,10 @@ function ProductsList() {
     <main className="page">
       <div className="page-title">
         <h1>Produtos</h1>
-        {canWrite && (
-          <Link className="primary-link" to="/products/new">
-            Novo produto
-          </Link>
-        )}
+        {canWrite && <div className="product-create-actions">
+          <Link className="primary-link" to="/products/new">Novo produto</Link>
+          <Link className="primary-link" to="/kits/new">Novo kit</Link>
+        </div>}
       </div>
       <div className="products-view-switch" role="group" aria-label="Visualização dos produtos">
         <button

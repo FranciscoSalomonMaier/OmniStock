@@ -9,13 +9,16 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Brackets, In, Repository } from 'typeorm';
+import { ProductBundle } from '../product_bundles/entities/product_bundle.entity';
+import { ProductBundleComponent } from '../product_bundle_components/entities/product_bundle_component.entity';
+import { CreateKitDto, UpdateKitDto } from './dto/kit.dto';
 import { CompanyRole } from '../common/enums/company-role.enum';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { ListProductsQueryDto } from './dto/list-products-query.dto';
 import { Product } from './entities/product.entity';
 import { ProductCategory } from './entities/product-category.entity';
 import { ProductImage } from './entities/product-image.entity';
-import { ProductStatus } from './enums/product.enums';
+import { ProductStatus, UnitOfMeasure } from './enums/product.enums';
 import { LocalStorageService } from './storage/local-storage.service';
 @Injectable()
 export class ProductsService {
@@ -31,29 +34,14 @@ export class ProductsService {
     private readonly bundles: BundlesCompositionService,
   ) {}
   async create(companyId: string, userId: string, dto: CreateProductDto) {
+    if (dto.unitOfMeasure === UnitOfMeasure.KIT)
+      throw new BadRequestException(
+        'Cadastre kits pelo cadastro específico de kits.',
+      );
     await this.validateCategory(companyId, dto.categoryId);
     this.validateBarcode(dto.barcode);
     try {
-      const product = await this.products.save(
-        this.products.create({
-          ...dto,
-          companyId,
-          categoryId: dto.categoryId ?? null,
-          description: dto.description ?? null,
-          barcode: dto.barcode ?? null,
-          purchasePrice: dto.purchasePrice ?? null,
-          costPrice: dto.costPrice ?? null,
-          salePrice: null,
-          ncm: dto.ncm ?? null,
-          cest: dto.cest ?? null,
-          defaultCfop: null,
-          merchandiseOrigin: dto.merchandiseOrigin ?? null,
-          weight: dto.weight ?? null,
-          height: dto.height ?? null,
-          width: dto.width ?? null,
-          length: dto.length ?? null,
-        }),
-      );
+      const product = await this.products.save(this.newProduct(companyId, dto));
       this.logger.log({
         event: 'product.created',
         companyId,
@@ -65,6 +53,99 @@ export class ProductsService {
       this.conflict(e);
       throw e;
     }
+  }
+  async createKit(companyId: string, userId: string, dto: CreateKitDto) {
+    await this.validateCategory(companyId, dto.categoryId);
+    this.validateBarcode(dto.barcode);
+    if (!dto.components?.length)
+      throw new BadRequestException(
+        'Adicione pelo menos um componente ao kit.',
+      );
+    if (
+      new Set(dto.components.map((c) => c.productId)).size !==
+      dto.components.length
+    )
+      throw new BadRequestException('Não repita o mesmo componente no kit.');
+    try {
+      const product = await this.products.manager.transaction(async (m) => {
+        await this.bundles.lock(companyId, m);
+        for (const component of dto.components) {
+          const found = await this.bundles.product(
+            companyId,
+            component.productId,
+            m,
+          );
+          if (found.status !== ProductStatus.ACTIVE)
+            throw new BadRequestException(
+              'Selecione apenas componentes ativos.',
+            );
+          if (!(await this.bundles.validateComposition(found.id, companyId, m)))
+            throw new BadRequestException(
+              'Um dos componentes possui composição inválida.',
+            );
+        }
+        const { components, ...fields } = dto;
+        const created = await m.save(
+          Product,
+          this.newProduct(companyId, {
+            ...fields,
+            unitOfMeasure: UnitOfMeasure.KIT,
+          }),
+        );
+        const bundle = await m.save(
+          ProductBundle,
+          m.create(ProductBundle, {
+            companyId,
+            bundleProductId: created.id,
+            active: true,
+          }),
+        );
+        await m.save(
+          ProductBundleComponent,
+          components.map((component) =>
+            m.create(ProductBundleComponent, {
+              companyId,
+              bundleId: bundle.id,
+              componentProductId: component.productId,
+              quantity: component.quantity,
+              active: true,
+            }),
+          ),
+        );
+        await this.bundles.queueChanges(companyId, created.id, m, true);
+        return created;
+      });
+      this.logger.log({
+        event: 'kit.created',
+        companyId,
+        productId: product.id,
+        userId,
+      });
+      return product;
+    } catch (e: unknown) {
+      this.conflict(e);
+      throw e;
+    }
+  }
+  private newProduct(companyId: string, dto: CreateProductDto) {
+    return this.products.create({
+      ...dto,
+      companyId,
+      categoryId: dto.categoryId ?? null,
+      description: dto.description ?? null,
+      barcode: dto.barcode ?? null,
+      purchasePrice: dto.purchasePrice ?? null,
+      costPrice: dto.costPrice ?? null,
+      salePrice: null,
+      ncm: dto.ncm ?? null,
+      cest: dto.cest ?? null,
+      defaultCfop: null,
+      merchandiseOrigin: dto.merchandiseOrigin ?? null,
+      weight: dto.weight ?? null,
+      height: dto.height ?? null,
+      width: dto.width ?? null,
+      length: dto.length ?? null,
+    });
   }
   async list(companyId: string, role: CompanyRole, q: ListProductsQueryDto) {
     const qb = this.products
@@ -113,8 +194,15 @@ export class ProductsService {
       .skip((q.page - 1) * q.limit)
       .take(q.limit);
     const [data, total] = await qb.getManyAndCount();
+    const kitIds = await this.activeKitIds(
+      companyId,
+      data.map((p) => p.id),
+    );
     return {
-      data: data.map((p) => this.visible(p, role)),
+      data: data.map((p) => ({
+        ...this.visible(p, role),
+        isBundle: kitIds.has(p.id),
+      })),
       meta: {
         page: q.page,
         limit: q.limit,
@@ -202,6 +290,7 @@ export class ProductsService {
         })
       : [];
     const byId = new Map(products.map((product) => [product.id, product]));
+    const kitIds = await this.activeKitIds(companyId, ids);
     const total = rows.length ? Number(rows[0].total) : 0;
     return {
       data: rows.map((row) => {
@@ -218,7 +307,10 @@ export class ProductsService {
         return {
           id: row.group_id,
           mixedKit: row.mixed_kit,
-          products: members.map((product) => this.visible(product, role)),
+          products: members.map((product) => ({
+            ...this.visible(product, role),
+            isBundle: kitIds.has(product.id),
+          })),
         };
       }),
       meta: {
@@ -246,7 +338,39 @@ export class ProductsService {
     userId: string,
     dto: UpdateProductDto,
   ) {
-    const product = (await this.get(companyId, id)) as Product;
+    const product = (await this.get(companyId, id)) as Product & {
+      isBundle: boolean;
+    };
+    if (product.isBundle)
+      throw new BadRequestException(
+        'Edite kits pelo cadastro específico de kits.',
+      );
+    if (dto.unitOfMeasure === UnitOfMeasure.KIT)
+      throw new BadRequestException(
+        'Cadastre kits pelo cadastro específico de kits.',
+      );
+    return this.saveProduct(companyId, id, userId, product, dto);
+  }
+  async updateKit(
+    companyId: string,
+    id: string,
+    userId: string,
+    dto: UpdateKitDto,
+  ) {
+    const product = (await this.get(companyId, id)) as Product & {
+      isBundle: boolean;
+    };
+    if (!product.isBundle)
+      throw new BadRequestException('Este cadastro não é um kit.');
+    return this.saveProduct(companyId, id, userId, product, dto);
+  }
+  private async saveProduct(
+    companyId: string,
+    id: string,
+    userId: string,
+    product: Product,
+    dto: UpdateProductDto,
+  ) {
     await this.validateCategory(companyId, dto.categoryId);
     this.validateBarcode(dto.barcode);
     const oldSku = product.sku;
@@ -265,6 +389,15 @@ export class ProductsService {
       this.conflict(e);
       throw e;
     }
+  }
+  private async activeKitIds(companyId: string, ids: string[]) {
+    if (!ids.length) return new Set<string>();
+    const rows = await this.products.manager.findBy(ProductBundle, {
+      companyId,
+      active: true,
+      bundleProductId: In(ids),
+    });
+    return new Set(rows.map((row) => row.bundleProductId));
   }
   async status(
     companyId: string,

@@ -109,6 +109,13 @@
 .product-remove-button:focus-visible { outline: 3px solid #e8b7b7; outline-offset: 2px; }
 .product-removal-dialog .confirm-modal .form-actions button:last-child { background: #b52b2b; color: #fff; }
 .product-removal-dialog .confirm-modal .form-actions button:last-child:hover:not(:disabled) { background: #932020; }
+.product-create-actions { display: flex; gap: .65rem; flex-wrap: wrap; }
+.kit-component-fields { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 2fr) minmax(100px, 1fr) auto; gap: .75rem; align-items: end; }
+.kit-component-fields button { min-height: 43px; }
+.kit-selected-components { grid-column: 1 / -1; margin: 0; padding-left: 1.25rem; }
+.kit-selected-components li { margin: .4rem 0; }
+.kit-selected-components button { margin-left: .75rem; border: 0; color: #b52b2b; background: transparent; cursor: pointer; }
+@media (max-width: 650px) { .kit-component-fields { grid-template-columns: 1fr; } }
 
 .product-removal-error #error-message { white-space: pre-line; }
 .product-removal-error .confirm-modal { max-height: min(80vh, 560px); overflow-y: auto; }

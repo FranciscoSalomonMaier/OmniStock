@@ -12,7 +12,8 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ErrorDialog } from "../../components/feedback/ErrorDialog";
 import { ApiError } from "../../services/api";
 import { productService } from "../../services/product.service";
-import type { Category } from "../../types/product";
+import { kitService } from "../../services/kit.service";
+import type { Category, Product } from "../../types/product";
 import "../inventory/inventory.css";
 const initial = {
   sku: "",
@@ -85,22 +86,31 @@ function validate(form: Form): Errors {
     e.barcode = "O código de barras informado é inválido.";
   return e;
 }
-function dialogMessage(error: unknown) {
+function dialogMessage(error: unknown, kind: "produto" | "kit") {
   if (!(error instanceof ApiError))
-    return "Não foi possível cadastrar o produto. Tente novamente.";
+    return `Não foi possível salvar o ${kind}. Tente novamente.`;
   if (error.status === 0) return error.message;
   if (error.status === 403)
-    return "Você não possui permissão para cadastrar produtos.";
+    return `Você não possui permissão para cadastrar ${kind === "kit" ? "kits" : "produtos"}.`;
   if (error.status === 409) return error.message;
   if (error.status === 400) return "Existem informações inválidas no cadastro.";
   return (
-    error.message || "Não foi possível cadastrar o produto. Tente novamente."
+    error.message || `Não foi possível salvar o ${kind}. Tente novamente.`
   );
 }
-export function ProductFormPage() {
+export function ProductFormPage({ kind = "product" }: { kind?: "product" | "kit" }) {
+  const isKit = kind === "kit";
   const { id } = useParams();
   const navigate = useNavigate();
-  const [form, setForm] = useState(initial);
+  const [form, setForm] = useState<Form>({ ...initial, unitOfMeasure: isKit ? "KIT" : "UN" });
+  const [components, setComponents] = useState<{ product: Product; quantity: string }[]>([]);
+  const [componentSearch, setComponentSearch] = useState("");
+  const [componentOptions, setComponentOptions] = useState<Product[]>([]);
+  const [selectedComponent, setSelectedComponent] = useState("");
+  const [componentQuantity, setComponentQuantity] = useState("1");
+  const [componentError, setComponentError] = useState("");
+  const [loadingProduct, setLoadingProduct] = useState(Boolean(id));
+  const [loadError, setLoadError] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [touched, setTouched] = useState<Partial<Record<Field, boolean>>>({});
@@ -115,10 +125,15 @@ export function ProductFormPage() {
   const refs = useRef<Partial<Record<Field, HTMLElement | null>>>({});
   useEffect(() => {
     void productService.categories().then(setCategories);
-    if (id)
+    if (id) {
+      setLoadingProduct(true);
       void productService
         .get(id)
-        .then((p) =>
+        .then((p) => {
+          if (Boolean(p.isBundle) !== isKit) {
+            navigate(p.isBundle ? `/kits/${id}/edit` : `/products/${id}/edit`, { replace: true });
+            return;
+          }
           setForm(
             Object.fromEntries(
               Object.keys(initial).map((k) => [
@@ -126,9 +141,22 @@ export function ProductFormPage() {
                 String((p as unknown as Record<string, unknown>)[k] ?? ""),
               ]),
             ) as Form,
-          ),
-        );
-  }, [id]);
+          );
+          setLoadingProduct(false);
+        })
+        .catch(() => { setLoadError("Não foi possível carregar o cadastro."); setLoadingProduct(false); });
+    }
+  }, [id, isKit, navigate]);
+  useEffect(() => {
+    if (!isKit || id) return;
+    let active = true;
+    const timer = setTimeout(() => {
+      void productService.list(new URLSearchParams({ search: componentSearch, limit: "100", status: "ACTIVE" }))
+        .then((page) => { if (active) setComponentOptions(page.data); })
+        .catch(() => { if (active) setComponentError("Não foi possível buscar produtos para o kit."); });
+    }, 250);
+    return () => { active = false; clearTimeout(timer); };
+  }, [isKit, id, componentSearch]);
   const closeDialog = useCallback(() => {
     setDialog(null);
     const first = Object.keys(errors)[0] as Field | undefined;
@@ -147,7 +175,7 @@ export function ProductFormPage() {
   function markAndFocus(next: Errors) {
     setTouched(Object.fromEntries(Object.keys(initial).map((k) => [k, true])));
     setErrors(next);
-    setSummary("Revise os campos destacados antes de salvar o produto.");
+    setSummary(`Revise os campos destacados antes de salvar o ${isKit ? "kit" : "produto"}.`);
     const first = Object.keys(next)[0] as Field | undefined;
     if (first) {
       refs.current[first]?.focus();
@@ -164,6 +192,10 @@ export function ProductFormPage() {
       markAndFocus(local);
       return;
     }
+    if (isKit && !id && !components.length) {
+      setComponentError("Adicione pelo menos um produto ao kit.");
+      return;
+    }
     setSaving(true);
     setSummary("");
     setUploadWarning("");
@@ -173,10 +205,13 @@ export function ProductFormPage() {
         value === "" ? null : value,
       ]),
     );
+    if (isKit) delete payload.unitOfMeasure;
     try {
       const product = id
-        ? await productService.update(id, payload)
-        : await productService.create(payload);
+        ? isKit ? await kitService.update(id, payload) : await productService.update(id, payload)
+        : isKit
+          ? await kitService.create({ ...payload, components: components.map(({ product, quantity }) => ({ productId: product.id, quantity: Number(quantity) })) })
+          : await productService.create(payload);
       const failures: string[] = [];
       for (const file of files)
         try {
@@ -186,10 +221,10 @@ export function ProductFormPage() {
         }
       if (failures.length) {
         setUploadWarning(
-          `Produto criado com sucesso, mas não foi possível enviar: ${failures.join(", ")}.`,
+          `${isKit ? "Kit" : "Produto"} salvo com sucesso, mas não foi possível enviar: ${failures.join(", ")}.`,
         );
         if (!id)
-          navigate(`/products/${product.id}/edit`, {
+          navigate(isKit ? `/kits/${product.id}/edit` : `/products/${product.id}/edit`, {
             replace: true,
             state: { uploadWarning: failures },
           });
@@ -204,7 +239,7 @@ export function ProductFormPage() {
         for (const [k, v] of Object.entries(fields))
           if (k in initial) mapped[k as Field] = v[0];
       if (api?.status === 409 && api.message.toLowerCase().includes("sku")) {
-        mapped.sku = dialogMessage(api);
+        mapped.sku = dialogMessage(api, isKit ? "kit" : "produto");
       }
       if (Object.keys(mapped).length) {
         setErrors((x) => ({ ...x, ...mapped }));
@@ -213,7 +248,7 @@ export function ProductFormPage() {
           ...Object.fromEntries(Object.keys(mapped).map((k) => [k, true])),
         }));
       }
-      setDialog({ message: dialogMessage(reason), fields });
+      setDialog({ message: dialogMessage(reason, isKit ? "kit" : "produto"), fields });
     } finally {
       setSaving(false);
     }
@@ -252,11 +287,13 @@ export function ProductFormPage() {
       </label>
     );
   };
+  if (loadingProduct) return <main className="page">Carregando cadastro...</main>;
+  if (loadError) return <main className="page"><p className="form-error">{loadError}</p><Link to="/products">Voltar aos produtos</Link></main>;
   return (
     <main className="page">
       <div className="page-title">
         <div>
-          <h1>{id ? "Editar produto" : "Novo produto"}</h1>
+          <h1>{id ? (isKit ? "Editar kit" : "Editar produto") : (isKit ? "Novo kit" : "Novo produto")}</h1>
           <p className="muted">
             Preencha os dados comerciais, fiscais e de estoque mínimo.
           </p>
@@ -291,7 +328,7 @@ export function ProductFormPage() {
                 ))}
             </select>
           </label>
-          <label>
+          {isKit ? <p className="muted">Tipo: Kit. O estoque será calculado pelos componentes.</p> : <label>
             Unidade *
             <select
               ref={(node) => {
@@ -306,7 +343,6 @@ export function ProductFormPage() {
             >
               {[
                 "UN",
-                "KIT",
                 "KG",
                 "G",
                 "L",
@@ -324,8 +360,42 @@ export function ProductFormPage() {
                 </option>
               ))}
             </select>
-          </label>
+          </label>}
         </fieldset>
+        {isKit && !id && <fieldset>
+          <legend>Composição do kit *</legend>
+          <p className="muted">Escolha os produtos e a quantidade de cada um por kit.</p>
+          <label>Buscar produto
+            <input value={componentSearch} onChange={(e) => setComponentSearch(e.target.value)} placeholder="SKU ou nome" />
+          </label>
+          <div className="kit-component-fields">
+            <label>Produto
+              <select value={selectedComponent} onChange={(e) => setSelectedComponent(e.target.value)}>
+                <option value="">Selecione um produto</option>
+                {componentOptions.filter((p) => !components.some((c) => c.product.id === p.id)).map((p) =>
+                  <option key={p.id} value={p.id}>{p.sku} — {p.name}</option>)}
+              </select>
+            </label>
+            <label>Quantidade por kit
+              <input type="number" min="1" step="1" value={componentQuantity} onChange={(e) => setComponentQuantity(e.target.value)} />
+            </label>
+            <button type="button" className="secondary" onClick={() => {
+              const product = componentOptions.find((p) => p.id === selectedComponent);
+              const quantity = Number(componentQuantity);
+              if (!product || !Number.isSafeInteger(quantity) || quantity <= 0) {
+                setComponentError("Selecione um produto e informe uma quantidade inteira positiva.");
+                return;
+              }
+              setComponents((items) => [...items, { product, quantity: componentQuantity }]);
+              setSelectedComponent("");
+              setComponentQuantity("1");
+              setComponentError("");
+            }}>Adicionar componente</button>
+          </div>
+          {components.length > 0 && <ul className="kit-selected-components">{components.map(({ product, quantity }) =>
+            <li key={product.id}>{product.sku} — {product.name} · {quantity} <button type="button" onClick={() => setComponents((items) => items.filter((item) => item.product.id !== product.id))}>Remover</button></li>)}</ul>}
+          {componentError && <p className="form-error" role="alert">{componentError}</p>}
+        </fieldset>}
         <fieldset>
           <legend>Preços</legend>
           {input("purchasePrice", "Preço de Compra", "number")}
@@ -401,13 +471,13 @@ export function ProductFormPage() {
         </div>
       </form>
       {id && <FiscalProductEditor productId={id} />}
-      {id && <BundleEditor key={id} productId={id} />}
+      {id && isKit && <BundleEditor key={id} productId={id} />}
       <ErrorDialog
         open={Boolean(dialog)}
         title={
           id
-            ? "Não foi possível atualizar o produto"
-            : "Não foi possível cadastrar o produto"
+            ? `Não foi possível atualizar o ${isKit ? "kit" : "produto"}`
+            : `Não foi possível cadastrar o ${isKit ? "kit" : "produto"}`
         }
         message={dialog?.message ?? ""}
         fieldErrors={dialog?.fields}

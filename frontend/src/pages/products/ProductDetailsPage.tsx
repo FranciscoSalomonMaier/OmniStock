@@ -34,7 +34,7 @@ export function ProductDetailsPage() {
   if (!product) return <main className="page">Carregando...</main>
   const canEdit = ['ADMIN', 'MANAGER', 'STOCKIST'].includes(activeMembership?.role ?? '')
   return <main className="page">
-    <div className="page-title"><div><span className="eyebrow">{product.sku}</span><h1>{product.name}</h1></div>{canEdit && <Link to={`/products/${product.id}/edit`}>Editar</Link>}</div>
+    <div className="page-title"><div><span className="eyebrow">{product.sku}</span><h1>{product.name}</h1></div>{canEdit && <Link to={product.isBundle ? `/kits/${product.id}/edit` : `/products/${product.id}/edit`}>Editar</Link>}</div>
     <div className="gallery">{images.map((image) => <img key={image.id} src={image.blobUrl} alt={image.originalName} />)}</div>
     <dl className="details">
       <div><dt>Status</dt><dd>{product.status}</dd></div><div><dt>Categoria</dt><dd>{product.category?.name ?? 'Sem categoria'}</dd></div>
@@ -44,7 +44,7 @@ export function ProductDetailsPage() {
       <div><dt>Peso e dimensões</dt><dd>{product.weight ?? '—'} kg · {product.height ?? '—'} × {product.width ?? '—'} × {product.length ?? '—'} cm</dd></div>
       <div><dt>Estoque mínimo</dt><dd>{new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 }).format(Number(product.minimumStock))}</dd></div><div><dt>Criado</dt><dd>{new Date(product.createdAt).toLocaleString('pt-BR')}</dd></div>
     </dl><p>{product.description}</p>
-    <BundleEditor productId={product.id}/>
+    {product.isBundle && <BundleEditor productId={product.id}/>}
     <section className="link-panel"><div className="page-title"><h2>Anúncios vinculados</h2><Link to={`/products/${product.id}/marketplace-links`}>Gerenciar</Link></div>{!marketplaceLinks.length?<p>Nenhum anúncio vinculado.</p>:<div className="table-wrap"><table className="link-table"><thead><tr><th>Canal</th><th>Conta</th><th>ID externo</th><th>SKU externo</th><th>Preço</th><th>Status</th></tr></thead><tbody>{marketplaceLinks.slice(0,5).map(link=><tr key={link.id}><td>{link.channel.name}</td><td>{link.connection.name}</td><td>{link.listing.externalItemId}{link.listing.externalVariationId?` / ${link.listing.externalVariationId}`:''}</td><td>{link.listing.externalSku??'—'}</td><td>{link.listing.currency} {link.listing.price}</td><td><span className={`status-pill ${link.status}`}>{link.status}</span></td></tr>)}</tbody></table></div>}</section>
   </main>
 }

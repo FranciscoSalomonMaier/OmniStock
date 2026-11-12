@@ -134,23 +134,7 @@ function BundleEditorForCompany({
       {!composition ? (
         <p className="bundle-note">Carregando composição...</p>
       ) : !composition.isBundle ? (
-        <div className="bundle-unitary">
-          <p>Produto unitário com estoque físico.</p>
-          {canEdit && (
-            <button
-              className="bundle-button bundle-primary"
-              type="button"
-              disabled={busy}
-              onClick={() => void mutate(() => bundleService.create(productId))}
-            >
-              Cadastrar como kit
-            </button>
-          )}
-          <p className="bundle-note">
-            Para vender kits de um produto que já possui estoque, cadastre um
-            novo produto comercial.
-          </p>
-        </div>
+        <p className="bundle-note">Este produto não é um kit.</p>
       ) : (
         <>
           <div className="bundle-summary">

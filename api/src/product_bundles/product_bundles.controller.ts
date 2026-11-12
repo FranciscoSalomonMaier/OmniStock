@@ -6,7 +6,6 @@ import {
   Param,
   ParseUUIDPipe,
   Patch,
-  Post,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -17,20 +16,11 @@ import { CurrentMembership } from '../companies/decorators/current-membership.de
 import { CompanyMember } from '../companies/entities/company-member.entity';
 import { CompanyRole } from '../common/enums/company-role.enum';
 import { ProductBundlesService } from './product_bundles.service';
-import { CreateProductBundleDto } from './dto/create-product_bundle.dto';
 import { UpdateProductBundleDto } from './dto/update-product_bundle.dto';
 @UseGuards(JwtAuthGuard, CompanyGuard, CompanyRolesGuard)
 @Controller('product-bundles')
 export class ProductBundlesController {
   constructor(private service: ProductBundlesService) {}
-  @Post()
-  @CompanyRoles(CompanyRole.ADMIN, CompanyRole.MANAGER, CompanyRole.STOCKIST)
-  create(
-    @CurrentMembership() m: CompanyMember,
-    @Body() dto: CreateProductBundleDto,
-  ) {
-    return this.service.create(m.companyId, dto);
-  }
   @Get() list(@CurrentMembership() m: CompanyMember) {
     return this.service.findAll(m.companyId);
   }

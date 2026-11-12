@@ -70,8 +70,10 @@ export function AppRoutes() {
             <Route path="/fiscal/*" element={<FiscalPage />} />
             <Route path="/products" element={<ProductsPage />} />
             <Route path="/products/new" element={<ProductFormPage />} />
+            <Route path="/kits/new" element={<ProductFormPage kind="kit" />} />
             <Route path="/products/:id" element={<ProductDetailsPage />} />
             <Route path="/products/:id/edit" element={<ProductFormPage />} />
+            <Route path="/kits/:id/edit" element={<ProductFormPage kind="kit" />} />
             <Route path="/product-categories" element={<CategoriesPage />} />
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/inventory/movements" element={<MovementsPage />} />

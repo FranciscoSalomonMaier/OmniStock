@@ -8,6 +8,7 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  NotEquals,
 } from 'class-validator';
 import { PartialType } from '@nestjs/swagger';
 import { normalizeSku } from '../../common/utils/normalize-sku';
@@ -40,8 +41,11 @@ export class CreateProductDto {
   @Transform(({ value }) => normalizeBarcode(value as unknown))
   @Matches(/^\d{8}$|^\d{12,14}$/)
   barcode?: string | null;
-  @IsEnum(UnitOfMeasure) unitOfMeasure: UnitOfMeasure;
-  @IsOptional() @Matches(/^\d{1,13}(\.\d{1,2})?$/) purchasePrice?: string | null;
+  @IsEnum(UnitOfMeasure)
+  @NotEquals(UnitOfMeasure.KIT)
+  unitOfMeasure: UnitOfMeasure;
+  @IsOptional() @Matches(/^\d{1,13}(\.\d{1,2})?$/) purchasePrice?:
+    string | null;
   @IsOptional() @Matches(/^\d{1,13}(\.\d{1,2})?$/) costPrice?: string | null;
   @IsOptional()
   @Transform(({ value }) => digits(value as unknown))

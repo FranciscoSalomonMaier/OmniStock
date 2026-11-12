@@ -10,6 +10,7 @@ import { ProductImage } from './entities/product-image.entity';
 import { Product } from './entities/product.entity';
 import { ProductsController } from './products.controller';
 import { ProductsService } from './products.service';
+import { KitsController } from './kits.controller';
 import { LocalStorageService } from './storage/local-storage.service';
 @Module({
   imports: [
@@ -17,7 +18,7 @@ import { LocalStorageService } from './storage/local-storage.service';
     TypeOrmModule.forFeature([Product, ProductCategory, ProductImage]),
     CompaniesModule,
   ],
-  controllers: [ProductsController, CategoriesController],
+  controllers: [ProductsController, KitsController, CategoriesController],
   providers: [
     ProductRemovalService,
     ProductsService,

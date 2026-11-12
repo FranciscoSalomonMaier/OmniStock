@@ -20,10 +20,10 @@ describe('CreateProductDto', () => {
     expect(pipe.transform(valid, metadata)).resolves.toMatchObject({
       sku: 'MK-001',
     }));
-  it('aceita KIT como unidade de medida', async () =>
+  it('reserva KIT para o cadastro específico de kits', async () =>
     expect(
       pipe.transform({ ...valid, unitOfMeasure: 'KIT' }, metadata),
-    ).resolves.toMatchObject({ unitOfMeasure: 'KIT' }));
+    ).rejects.toThrow());
   it('mantém compra e custo independentes, sem cálculo automático', async () =>
     expect(
       pipe.transform(
