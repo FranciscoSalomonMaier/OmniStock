@@ -3,6 +3,7 @@ import type {
   Category,
   Product,
   ProductPage,
+  ProductGroupPage,
   ProductStatus,
 } from "../types/product";
 export type ProductInput = Omit<
@@ -29,6 +30,8 @@ export const productService = {
     apiRequest<void>(`/products/${id}`, { method: "DELETE" }),
   list: (query: URLSearchParams) =>
     apiRequest<ProductPage>(`/products?${query}`),
+  listGrouped: (query: URLSearchParams) =>
+    apiRequest<ProductGroupPage>(`/products/groups?${query}`),
   get: (id: string) => apiRequest<Product>(`/products/${id}`),
   create: (data: Partial<ProductInput>) =>
     apiRequest<Product>("/products", {

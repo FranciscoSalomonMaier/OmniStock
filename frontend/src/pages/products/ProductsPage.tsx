@@ -5,7 +5,7 @@ import { Link } from "react-router-dom";
 import { useCompany } from "../../hooks/useCompany";
 import { productService } from "../../services/product.service";
 import { ApiError } from "../../services/api";
-import type { Category, Product } from "../../types/product";
+import type { Category, Product, ProductGroup } from "../../types/product";
 export function ProductsPage() {
   const { activeCompany } = useCompany();
   return <ProductsList key={activeCompany?.id ?? "none"} />;
@@ -13,6 +13,8 @@ export function ProductsPage() {
 function ProductsList() {
   const { activeCompany, activeMembership } = useCompany();
   const [products, setProducts] = useState<Product[]>([]);
+  const [groups, setGroups] = useState<ProductGroup[]>([]);
+  const [view, setView] = useState<"grouped" | "list">("grouped");
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -65,8 +67,7 @@ function ProductsList() {
     try {
       await productService.remove(removeTarget.id);
       setRemoveTarget(null);
-      if (products.length === 1 && page > 1) setPage(page - 1);
-      else setRevision((r) => r + 1);
+      setRevision((r) => r + 1);
     } catch (e) {
       setRemoveTarget(null);
       const reasons = e instanceof ApiError ? (e.reasons ?? []) : [];
@@ -83,6 +84,7 @@ function ProductsList() {
     }
   }
   useEffect(() => {
+    let cancelled = false;
     const timer = setTimeout(() => {
       const q = new URLSearchParams({
         page: String(page),
@@ -94,20 +96,69 @@ function ProductsList() {
       if (status) q.set("status", status);
       if (unit) q.set("unitOfMeasure", unit);
       setLoading(true);
-      Promise.all([productService.list(q), productService.categories()])
+      Promise.all([
+        view === "grouped"
+          ? productService.listGrouped(q)
+          : productService.list(q),
+        productService.categories(),
+      ])
         .then(([result, cats]) => {
-          setProducts(result.data);
+          if (cancelled) return;
+          if (view === "grouped") setGroups(result.data as ProductGroup[]);
+          else setProducts(result.data as Product[]);
           setPages(result.meta.totalPages);
           setCategories(cats);
           setError("");
+          if (page > 1 && page > result.meta.totalPages)
+            setPage(Math.max(1, result.meta.totalPages));
         })
-        .catch((e) => setError(e instanceof Error ? e.message : "Falha"))
-        .finally(() => setLoading(false));
+        .catch((e) => {
+          if (!cancelled) setError(e instanceof Error ? e.message : "Falha");
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false);
+        });
     }, 350);
-    return () => clearTimeout(timer);
-  }, [activeCompany?.id, page, search, status, unit, revision]);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [activeCompany?.id, page, search, status, unit, revision, view]);
   const canWrite = ["ADMIN", "MANAGER", "STOCKIST"].includes(
     activeMembership?.role ?? "",
+  );
+  const productRow = (product: Product) => (
+    <article key={product.id}>
+      <div>
+        <strong>{product.sku}</strong>
+        <h3>
+          <Link
+            className="product-name-link"
+            to={`/products/${product.id}`}
+            title={product.name}
+          >
+            {product.name}
+          </Link>
+        </h3>
+        <span>
+          {product.category?.name ?? "Sem categoria"} · {product.unitOfMeasure}
+        </span>
+      </div>
+      <div>
+        <span className="role">{product.status}</span>
+        {canWrite && (
+          <>
+            <Link to={`/products/${product.id}/edit`}>Editar</Link>
+            <button
+              className="product-remove-button"
+              type="button"
+              disabled={checking !== null || removing}
+              onClick={() => void requestRemoval(product)}
+              aria-label={`Remover ${product.name}`}
+            >
+              {checking === product.id ? "Verificando..." : "Remover"}
+            </button>
+          </>
+        )}
+      </div>
+    </article>
   );
   return (
     <main className="page">
@@ -118,6 +169,24 @@ function ProductsList() {
             Novo produto
           </Link>
         )}
+      </div>
+      <div className="products-view-switch" role="group" aria-label="Visualização dos produtos">
+        <button
+          type="button"
+          className={view === "grouped" ? "active" : ""}
+          aria-pressed={view === "grouped"}
+          onClick={() => { setView("grouped"); setPage(1); }}
+        >
+          Agrupados
+        </button>
+        <button
+          type="button"
+          className={view === "list" ? "active" : ""}
+          aria-pressed={view === "list"}
+          onClick={() => { setView("list"); setPage(1); }}
+        >
+          Lista
+        </button>
       </div>
       <div className="filters">
         <input
@@ -177,46 +246,32 @@ function ProductsList() {
           Limpar
         </button>
       </div>
+      {view === "grouped" && <p className="muted products-group-hint">A busca e os filtros encontram grupos; a unidade e seus kits aparecem juntos.</p>}
       {loading ? (
         <p>Carregando...</p>
       ) : error ? (
         <p className="form-error">{error}</p>
-      ) : !products.length ? (
+      ) : !(view === "grouped" ? groups.length : products.length) ? (
         <p>Nenhum produto encontrado.</p>
+      ) : view === "grouped" ? (
+        <div className="product-groups">
+          {groups.map((group) => (
+            <section className="product-group" key={group.id}>
+              {(group.products.length > 1 || group.mixedKit) && (
+                <div className="product-group-heading">
+                  <strong>{group.mixedKit ? "Kit com vários componentes" : "Produto e kits"}</strong>
+                  {group.products.length > 1 && <span>{group.products.length} produtos</span>}
+                </div>
+              )}
+              <div className="product-table">
+                {group.products.map(productRow)}
+              </div>
+            </section>
+          ))}
+        </div>
       ) : (
         <div className="product-table">
-          {products.map((p) => (
-            <article key={p.id}>
-              <div>
-                <strong>{p.sku}</strong>
-                <h3>
-                  <Link className="product-name-link" to={`/products/${p.id}`}>
-                    {p.name}
-                  </Link>
-                </h3>
-                <span>
-                  {p.category?.name ?? "Sem categoria"} · {p.unitOfMeasure}
-                </span>
-              </div>
-              <div>
-                <span className="role">{p.status}</span>
-                {canWrite && (
-                  <>
-                    <Link to={`/products/${p.id}/edit`}>Editar</Link>
-                    <button
-                      className="product-remove-button"
-                      type="button"
-                      disabled={checking !== null || removing}
-                      onClick={() => void requestRemoval(p)}
-                      aria-label={`Remover ${p.name}`}
-                    >
-                      {checking === p.id ? "Verificando..." : "Remover"}
-                    </button>
-                  </>
-                )}
-              </div>
-            </article>
-          ))}
+          {products.map(productRow)}
         </div>
       )}
       <div className="pagination">

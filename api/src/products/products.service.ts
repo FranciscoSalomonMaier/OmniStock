@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Brackets, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 import { CompanyRole } from '../common/enums/company-role.enum';
 import { CreateProductDto, UpdateProductDto } from './dto/product.dto';
 import { ListProductsQueryDto } from './dto/list-products-query.dto';
@@ -115,6 +115,112 @@ export class ProductsService {
     const [data, total] = await qb.getManyAndCount();
     return {
       data: data.map((p) => this.visible(p, role)),
+      meta: {
+        page: q.page,
+        limit: q.limit,
+        total,
+        totalPages: Math.ceil(total / q.limit),
+      },
+    };
+  }
+  async listGrouped(
+    companyId: string,
+    role: CompanyRole,
+    q: ListProductsQueryDto,
+  ) {
+    const params = [
+      companyId,
+      q.search?.trim() ? `%${q.search.trim()}%` : null,
+      q.sku?.trim().toUpperCase() || null,
+      q.barcode || null,
+      q.categoryId || null,
+      q.status || null,
+      q.unitOfMeasure || null,
+      q.minSalePrice || null,
+      q.maxSalePrice || null,
+      q.limit,
+      (q.page - 1) * q.limit,
+    ];
+    const rows = await this.products.query<
+      Array<{
+        group_id: string;
+        member_ids: string[];
+        mixed_kit: boolean;
+        total: string;
+      }>
+    >(
+      `WITH RECURSIVE single_component AS (
+         SELECT b.bundle_product_id AS kit_id, (ARRAY_AGG(c.component_product_id))[1] AS component_id
+         FROM product_bundles b
+         JOIN product_bundle_components c ON c.bundle_id=b.id AND c.company_id=b.company_id AND c.active
+         WHERE b.company_id=$1 AND b.active
+         GROUP BY b.bundle_product_id
+         HAVING COUNT(*)=1
+       ), paths AS (
+         SELECT p.id AS product_id,p.id AS ancestor_id,0 AS depth,ARRAY[p.id] AS trail
+         FROM products p WHERE p.company_id=$1
+         UNION ALL
+         SELECT paths.product_id,s.component_id,paths.depth+1,paths.trail||s.component_id
+         FROM paths JOIN single_component s ON s.kit_id=paths.ancestor_id
+         WHERE NOT s.component_id=ANY(paths.trail)
+       ), roots AS (
+         SELECT DISTINCT ON (product_id) product_id,ancestor_id AS group_id
+         FROM paths ORDER BY product_id,depth DESC
+       ), matching_groups AS (
+         SELECT DISTINCT r.group_id FROM roots r
+         JOIN products p ON p.id=r.product_id AND p.company_id=$1
+         WHERE ($2::text IS NULL OR p.sku ILIKE $2 OR p.name ILIKE $2 OR p.barcode ILIKE $2)
+           AND ($3::text IS NULL OR p.sku=$3)
+           AND ($4::text IS NULL OR p.barcode=$4)
+           AND ($5::uuid IS NULL OR p.category_id=$5)
+           AND ($6::text IS NULL OR p.status::text=$6)
+           AND ($7::text IS NULL OR p.unit_of_measure::text=$7)
+           AND ($8::numeric IS NULL OR p.sale_price >= $8)
+           AND ($9::numeric IS NULL OR p.sale_price <= $9)
+       ), grouped AS (
+         SELECT r.group_id,ARRAY_AGG(r.product_id) AS member_ids
+         FROM roots r JOIN matching_groups m ON m.group_id=r.group_id
+         GROUP BY r.group_id
+       )
+       SELECT g.group_id,g.member_ids,COUNT(*) OVER() AS total,
+         EXISTS(
+           SELECT 1 FROM product_bundles b
+           JOIN product_bundle_components c ON c.bundle_id=b.id AND c.company_id=b.company_id AND c.active
+           WHERE b.company_id=$1 AND b.bundle_product_id=g.group_id AND b.active
+           GROUP BY b.id HAVING COUNT(*)>1
+         ) AS mixed_kit
+       FROM grouped g JOIN products root ON root.id=g.group_id AND root.company_id=$1
+       ORDER BY LOWER(root.name),root.sku,g.group_id
+       LIMIT $10 OFFSET $11`,
+      params,
+    );
+    const ids = rows.flatMap((row) => row.member_ids);
+    const products = ids.length
+      ? await this.products.find({
+          where: { id: In(ids), companyId },
+          relations: { category: true },
+        })
+      : [];
+    const byId = new Map(products.map((product) => [product.id, product]));
+    const total = rows.length ? Number(rows[0].total) : 0;
+    return {
+      data: rows.map((row) => {
+        const members = row.member_ids
+          .map((id) => byId.get(id))
+          .filter((product): product is Product => Boolean(product));
+        members.sort((a, b) =>
+          a.id === row.group_id
+            ? -1
+            : b.id === row.group_id
+              ? 1
+              : a.sku.localeCompare(b.sku, 'pt-BR', { numeric: true }),
+        );
+        return {
+          id: row.group_id,
+          mixedKit: row.mixed_kit,
+          products: members.map((product) => this.visible(product, role)),
+        };
+      }),
       meta: {
         page: q.page,
         limit: q.limit,
@@ -341,7 +447,8 @@ export class ProductsService {
     if (typeof e === 'object' && e && 'code' in e && e.code === '23505') {
       const constraint = 'constraint' in e ? String(e.constraint) : '';
       throw new ConflictException(
-        constraint === 'UQ_product_company_sku' || constraint === 'IDX_product_company_sku'
+        constraint === 'UQ_product_company_sku' ||
+          constraint === 'IDX_product_company_sku'
           ? 'Já existe um produto com este SKU nesta empresa.'
           : 'Já existe um cadastro com os mesmos dados exclusivos nesta empresa.',
       );

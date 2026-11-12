@@ -66,6 +66,12 @@ export class ProductsController {
   ) {
     return this.service.list(m.companyId, m.role, q);
   }
+  @Get('groups') listGrouped(
+    @CurrentMembership() m: CompanyMember,
+    @Query() q: ListProductsQueryDto,
+  ) {
+    return this.service.listGrouped(m.companyId, m.role, q);
+  }
   @Get(':id') get(
     @CurrentMembership() m: CompanyMember,
     @Param('id') id: string,
