@@ -104,14 +104,12 @@
 .product-table article > div:last-child { flex: 0 0 auto; }
 .product-table .product-name-link { display: block; overflow: hidden; white-space: nowrap; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent); }
 
-.product-remove-button { border: 1px solid #e8b7b7; border-radius: 8px; padding: .45rem .75rem; color: #a52626; background: #fff; font: inherit; cursor: pointer; }
 .product-status-button { border: 1px solid #cdd8cf; border-radius: 8px; padding: .45rem .75rem; color: #17673d; background: #fff; font: inherit; cursor: pointer; }
 .product-status-button:hover:not(:disabled) { background: #eaf4ed; }
 .product-status-button:focus-visible { outline: 3px solid #a4cfb3; outline-offset: 2px; }
-.product-remove-button:hover:not(:disabled) { background: #fff0f0; }
-.product-remove-button:focus-visible { outline: 3px solid #e8b7b7; outline-offset: 2px; }
-.product-removal-dialog .confirm-modal .form-actions button:last-child { background: #b52b2b; color: #fff; }
-.product-removal-dialog .confirm-modal .form-actions button:last-child:hover:not(:disabled) { background: #932020; }
+.product-status-button.deactivate { border-color: #e8b7b7; color: #a52626; }
+.product-status-button.deactivate:hover:not(:disabled) { background: #fff0f0; }
+.product-status-button.deactivate:focus-visible { outline-color: #e8b7b7; }
 .product-create-actions { display: flex; gap: .65rem; flex-wrap: wrap; }
 .kit-component-fields { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 2fr) minmax(100px, 1fr) auto; gap: .75rem; align-items: end; }
 .kit-component-fields button { min-height: 43px; }
@@ -120,10 +118,6 @@
 .kit-selected-components button { margin-left: .75rem; border: 0; color: #b52b2b; background: transparent; cursor: pointer; }
 @media (max-width: 650px) { .kit-component-fields { grid-template-columns: 1fr; } }
 
-.product-removal-error #error-message { white-space: pre-line; }
-.product-removal-error .confirm-modal { max-height: min(80vh, 560px); overflow-y: auto; }
-.product-removal-error .error-reasons { margin: .5rem 0 1rem; padding-left: 1.25rem; line-height: 1.5; }
-.product-removal-error .error-reasons li + li { margin-top: .4rem; }
 .products-view-switch { display: inline-flex; gap: .25rem; padding: .25rem; border: 1px solid #dce4dc; border-radius: 10px; background: #fff; }
 .products-view-switch button { padding: .55rem .9rem; border: 0; border-radius: 7px; background: transparent; color: #345341; font: inherit; cursor: pointer; }
 .products-view-switch button.active { background: #e7f2ea; color: #17673d; font-weight: 700; }

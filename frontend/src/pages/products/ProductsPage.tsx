@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useCompany } from "../../hooks/useCompany";
 import { productService } from "../../services/product.service";
-import { ApiError } from "../../services/api";
 import type { Category, Product, ProductGroup, ProductStatus } from "../../types/product";
 
 const statusLabels: Record<ProductStatus, string> = {
@@ -30,68 +29,9 @@ function ProductsList() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const [checking, setChecking] = useState<string | null>(null);
-  const [removing, setRemoving] = useState(false);
-  const [removeTarget, setRemoveTarget] = useState<Product | null>(null);
   const [statusTarget, setStatusTarget] = useState<Product | null>(null);
   const [changingStatus, setChangingStatus] = useState(false);
   const [statusError, setStatusError] = useState("");
-  const [removalError, setRemovalError] = useState<{
-    message: string;
-    reasons: string[];
-  } | null>(null);
-  async function requestRemoval(product: Product) {
-    setChecking(product.id);
-    try {
-      const check = await productService.removalCheck(product.id);
-      if (!check.allowed) {
-        const reasons = [
-          ...(check.reasons ?? []),
-          ...check.kits.map((kit) => `Kit vinculado: ${kit.sku} — ${kit.name}`),
-        ];
-        setRemovalError({
-          message: reasons.length
-            ? "Este produto não pode ser removido pelos seguintes motivos:"
-            : (check.message ?? "Não foi possível remover o produto."),
-          reasons,
-        });
-        return;
-      }
-      setRemoveTarget(product);
-    } catch (e) {
-      setRemovalError({
-        message:
-          e instanceof Error
-            ? e.message
-            : "Não foi possível verificar os vínculos do produto.",
-        reasons: [],
-      });
-    } finally {
-      setChecking(null);
-    }
-  }
-  async function confirmRemoval() {
-    if (!removeTarget || removing) return;
-    setRemoving(true);
-    try {
-      await productService.remove(removeTarget.id);
-      setRemoveTarget(null);
-      setRevision((r) => r + 1);
-    } catch (e) {
-      setRemoveTarget(null);
-      const reasons = e instanceof ApiError ? (e.reasons ?? []) : [];
-      setRemovalError({
-        message: reasons.length
-          ? "Este produto não pode ser removido pelos seguintes motivos:"
-          : e instanceof Error
-            ? e.message
-            : "Não foi possível remover o produto.",
-        reasons,
-      });
-    } finally {
-      setRemoving(false);
-    }
-  }
   async function confirmStatusChange() {
     if (!statusTarget || changingStatus) return;
     const nextStatus = statusTarget.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
@@ -173,24 +113,15 @@ function ProductsList() {
             <Link to={product.isBundle ? `/kits/${product.id}/edit` : `/products/${product.id}/edit`}>Editar</Link>
             {canChangeStatus && product.status !== "DISCONTINUED" && (
               <button
-                className="product-status-button"
+                className={`product-status-button${product.status === "ACTIVE" ? " deactivate" : ""}`}
                 type="button"
-                disabled={changingStatus || removing || checking !== null}
+                disabled={changingStatus}
                 onClick={() => setStatusTarget(product)}
-                aria-label={`${product.status === "ACTIVE" ? "Desativar" : "Reativar"} ${product.name}`}
+                aria-label={`${product.status === "ACTIVE" ? "Desativar" : "Ativar"} ${product.name}`}
               >
-                {product.status === "ACTIVE" ? "Desativar" : "Reativar"}
+                {product.status === "ACTIVE" ? "Desativar" : "Ativar"}
               </button>
             )}
-            <button
-              className="product-remove-button"
-              type="button"
-              disabled={checking !== null || removing || changingStatus}
-              onClick={() => void requestRemoval(product)}
-              aria-label={`Remover ${product.name}`}
-            >
-              {checking === product.id ? "Verificando..." : "Remover"}
-            </button>
           </>
         )}
       </div>
@@ -322,37 +253,16 @@ function ProductsList() {
         </button>
       </div>
       <p className="muted">{categories.length} categorias disponíveis.</p>
-      <div className="product-removal-dialog">
-        <ConfirmModal
-          open={removeTarget !== null}
-          title="Remover produto"
-          confirmLabel="Remover"
-          busy={removing}
-          onCancel={() => {
-            if (!removing) setRemoveTarget(null);
-          }}
-          onConfirm={() => void confirmRemoval()}
-        >
-          <p>
-            Deseja realmente remover{" "}
-            <strong>
-              {removeTarget?.sku} — {removeTarget?.name}
-            </strong>
-            ?
-          </p>
-          <p>Esta ação não pode ser desfeita.</p>
-        </ConfirmModal>
-      </div>
       <ConfirmModal
         open={statusTarget !== null}
-        title={statusTarget?.status === "ACTIVE" ? "Desativar produto" : "Reativar produto"}
-        confirmLabel={statusTarget?.status === "ACTIVE" ? "Desativar" : "Reativar"}
+        title={statusTarget?.status === "ACTIVE" ? "Desativar produto" : "Ativar produto"}
+        confirmLabel={statusTarget?.status === "ACTIVE" ? "Desativar" : "Ativar"}
         busy={changingStatus}
         onCancel={() => { if (!changingStatus) setStatusTarget(null); }}
         onConfirm={() => void confirmStatusChange()}
       >
         <p>
-          {statusTarget?.status === "ACTIVE" ? "Deseja desativar" : "Deseja reativar"}{" "}
+          {statusTarget?.status === "ACTIVE" ? "Deseja realmente desativar" : "Deseja realmente ativar"}{" "}
           <strong>{statusTarget?.sku} — {statusTarget?.name}</strong>?
         </p>
         {statusTarget?.status === "ACTIVE" && <p>O cadastro e o histórico serão preservados. Kits que usam este produto podem ficar indisponíveis. Anúncios nos marketplaces não serão pausados automaticamente.</p>}
@@ -363,15 +273,6 @@ function ProductsList() {
         message={statusError}
         onClose={() => setStatusError("")}
       />
-      <div className="product-removal-error">
-        <ErrorDialog
-          open={removalError !== null}
-          title="Não foi possível remover"
-          message={removalError?.message ?? ""}
-          reasons={removalError?.reasons}
-          onClose={() => setRemovalError(null)}
-        />
-      </div>
     </main>
   );
 }
