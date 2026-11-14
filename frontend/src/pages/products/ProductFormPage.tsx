@@ -9,7 +9,9 @@ import {
   type FormEvent,
 } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { ConfirmModal } from "../../components/feedback/ConfirmModal";
 import { ErrorDialog } from "../../components/feedback/ErrorDialog";
+import { useCompany } from "../../hooks/useCompany";
 import { ApiError } from "../../services/api";
 import { productService } from "../../services/product.service";
 import { kitService } from "../../services/kit.service";
@@ -102,7 +104,14 @@ export function ProductFormPage({ kind = "product" }: { kind?: "product" | "kit"
   const isKit = kind === "kit";
   const { id } = useParams();
   const navigate = useNavigate();
+  const { activeMembership } = useCompany();
+  const canChangeStatus = ["ADMIN", "MANAGER"].includes(activeMembership?.role ?? "");
   const [form, setForm] = useState<Form>({ ...initial, unitOfMeasure: isKit ? "KIT" : "UN" });
+  const [product, setProduct] = useState<Product | null>(null);
+  const [confirmStatus, setConfirmStatus] = useState(false);
+  const [changingStatus, setChangingStatus] = useState(false);
+  const [statusError, setStatusError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("");
   const [components, setComponents] = useState<{ product: Product; quantity: string }[]>([]);
   const [componentSearch, setComponentSearch] = useState("");
   const [componentOptions, setComponentOptions] = useState<Product[]>([]);
@@ -134,6 +143,7 @@ export function ProductFormPage({ kind = "product" }: { kind?: "product" | "kit"
             navigate(p.isBundle ? `/kits/${id}/edit` : `/products/${id}/edit`, { replace: true });
             return;
           }
+          setProduct(p);
           setForm(
             Object.fromEntries(
               Object.keys(initial).map((k) => [
@@ -183,6 +193,25 @@ export function ProductFormPage({ kind = "product" }: { kind?: "product" | "kit"
         behavior: "smooth",
         block: "center",
       });
+    }
+  }
+  async function changeStatus() {
+    if (!id || !product || changingStatus || saving) return;
+    const nextStatus = product.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    setChangingStatus(true);
+    setStatusError("");
+    setStatusMessage("");
+    try {
+      await productService.status(id, nextStatus);
+      setProduct((current) => current ? { ...current, status: nextStatus } : current);
+      setForm((current) => ({ ...current, status: nextStatus }));
+      setStatusMessage(`${isKit ? "Kit" : "Produto"} ${nextStatus === "ACTIVE" ? "ativado" : "desativado"} com sucesso.`);
+      setConfirmStatus(false);
+    } catch (error) {
+      setConfirmStatus(false);
+      setStatusError(error instanceof Error ? error.message : "Não foi possível alterar o status.");
+    } finally {
+      setChangingStatus(false);
     }
   }
   async function submit(e: FormEvent) {
@@ -298,7 +327,18 @@ export function ProductFormPage({ kind = "product" }: { kind?: "product" | "kit"
             Preencha os dados comerciais, fiscais e de estoque mínimo.
           </p>
         </div>
+        {id && product && canChangeStatus && product.status !== "DISCONTINUED" && (
+          <button
+            type="button"
+            className={`product-status-button${product.status === "ACTIVE" ? " deactivate" : ""}`}
+            disabled={saving || changingStatus}
+            onClick={() => setConfirmStatus(true)}
+          >
+            {product.status === "ACTIVE" ? "Desativar" : "Ativar"}
+          </button>
+        )}
       </div>
+      {statusMessage && <p className="notice" role="status">{statusMessage}</p>}
       <form className="product-form" noValidate onSubmit={submit}>
         <fieldset>
           <legend>Informações gerais</legend>
@@ -463,7 +503,7 @@ export function ProductFormPage({ kind = "product" }: { kind?: "product" | "kit"
           <button
             type="submit"
             className="product-save-button"
-            disabled={saving}
+            disabled={saving || changingStatus}
           >
             {saving ? "Salvando..." : "Salvar"}
           </button>
@@ -472,6 +512,27 @@ export function ProductFormPage({ kind = "product" }: { kind?: "product" | "kit"
       </form>
       {id && <FiscalProductEditor productId={id} />}
       {id && isKit && <BundleEditor key={id} productId={id} />}
+      <ConfirmModal
+        open={confirmStatus}
+        title={`${product?.status === "ACTIVE" ? "Desativar" : "Ativar"} ${isKit ? "kit" : "produto"}`}
+        confirmLabel={product?.status === "ACTIVE" ? "Desativar" : "Ativar"}
+        busy={changingStatus}
+        onCancel={() => { if (!changingStatus) setConfirmStatus(false); }}
+        onConfirm={() => void changeStatus()}
+      >
+        <p>
+          Deseja realmente {product?.status === "ACTIVE" ? "desativar" : "ativar"}{" "}
+          <strong>{product?.sku} — {product?.name}</strong>?
+        </p>
+        {product?.status === "ACTIVE" && <p>O cadastro e o histórico serão preservados. Kits que usam este produto podem ficar indisponíveis. Anúncios nos marketplaces não serão pausados automaticamente.</p>}
+        <p>Alterações ainda não salvas neste formulário não serão incluídas nesta ação.</p>
+      </ConfirmModal>
+      <ErrorDialog
+        open={Boolean(statusError)}
+        title="Não foi possível alterar o status"
+        message={statusError}
+        onClose={() => setStatusError("")}
+      />
       <ErrorDialog
         open={Boolean(dialog)}
         title={
