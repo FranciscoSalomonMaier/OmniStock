@@ -268,6 +268,8 @@ export class ProductsService {
        ), grouped AS (
          SELECT r.group_id,ARRAY_AGG(r.product_id) AS member_ids
          FROM roots r JOIN matching_groups m ON m.group_id=r.group_id
+         JOIN products member ON member.id=r.product_id AND member.company_id=$1
+         WHERE ($6::text IS NULL OR member.status::text=$6)
          GROUP BY r.group_id
        )
        SELECT g.group_id,g.member_ids,COUNT(*) OVER() AS total,

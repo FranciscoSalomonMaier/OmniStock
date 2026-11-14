@@ -105,6 +105,9 @@
 .product-table .product-name-link { display: block; overflow: hidden; white-space: nowrap; -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent); }
 
 .product-remove-button { border: 1px solid #e8b7b7; border-radius: 8px; padding: .45rem .75rem; color: #a52626; background: #fff; font: inherit; cursor: pointer; }
+.product-status-button { border: 1px solid #cdd8cf; border-radius: 8px; padding: .45rem .75rem; color: #17673d; background: #fff; font: inherit; cursor: pointer; }
+.product-status-button:hover:not(:disabled) { background: #eaf4ed; }
+.product-status-button:focus-visible { outline: 3px solid #a4cfb3; outline-offset: 2px; }
 .product-remove-button:hover:not(:disabled) { background: #fff0f0; }
 .product-remove-button:focus-visible { outline: 3px solid #e8b7b7; outline-offset: 2px; }
 .product-removal-dialog .confirm-modal .form-actions button:last-child { background: #b52b2b; color: #fff; }

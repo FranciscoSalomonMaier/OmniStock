@@ -5,7 +5,13 @@ import { Link } from "react-router-dom";
 import { useCompany } from "../../hooks/useCompany";
 import { productService } from "../../services/product.service";
 import { ApiError } from "../../services/api";
-import type { Category, Product, ProductGroup } from "../../types/product";
+import type { Category, Product, ProductGroup, ProductStatus } from "../../types/product";
+
+const statusLabels: Record<ProductStatus, string> = {
+  ACTIVE: "Ativo",
+  INACTIVE: "Inativo",
+  DISCONTINUED: "Descontinuado",
+};
 export function ProductsPage() {
   const { activeCompany } = useCompany();
   return <ProductsList key={activeCompany?.id ?? "none"} />;
@@ -17,7 +23,7 @@ function ProductsList() {
   const [view, setView] = useState<"grouped" | "list">("grouped");
   const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("ACTIVE");
   const [unit, setUnit] = useState("");
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
@@ -27,6 +33,9 @@ function ProductsList() {
   const [checking, setChecking] = useState<string | null>(null);
   const [removing, setRemoving] = useState(false);
   const [removeTarget, setRemoveTarget] = useState<Product | null>(null);
+  const [statusTarget, setStatusTarget] = useState<Product | null>(null);
+  const [changingStatus, setChangingStatus] = useState(false);
+  const [statusError, setStatusError] = useState("");
   const [removalError, setRemovalError] = useState<{
     message: string;
     reasons: string[];
@@ -83,6 +92,21 @@ function ProductsList() {
       setRemoving(false);
     }
   }
+  async function confirmStatusChange() {
+    if (!statusTarget || changingStatus) return;
+    const nextStatus = statusTarget.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+    setChangingStatus(true);
+    try {
+      await productService.status(statusTarget.id, nextStatus);
+      setStatusTarget(null);
+      setRevision((r) => r + 1);
+    } catch (e) {
+      setStatusTarget(null);
+      setStatusError(e instanceof Error ? e.message : "Não foi possível alterar o status do produto.");
+    } finally {
+      setChangingStatus(false);
+    }
+  }
   useEffect(() => {
     let cancelled = false;
     const timer = setTimeout(() => {
@@ -124,6 +148,7 @@ function ProductsList() {
   const canWrite = ["ADMIN", "MANAGER", "STOCKIST"].includes(
     activeMembership?.role ?? "",
   );
+  const canChangeStatus = ["ADMIN", "MANAGER"].includes(activeMembership?.role ?? "");
   const productRow = (product: Product) => (
     <article key={product.id}>
       <div>
@@ -142,14 +167,25 @@ function ProductsList() {
         </span>
       </div>
       <div>
-        <span className="role">{product.status}</span>
+        <span className="role">{statusLabels[product.status]}</span>
         {canWrite && (
           <>
             <Link to={product.isBundle ? `/kits/${product.id}/edit` : `/products/${product.id}/edit`}>Editar</Link>
+            {canChangeStatus && product.status !== "DISCONTINUED" && (
+              <button
+                className="product-status-button"
+                type="button"
+                disabled={changingStatus || removing || checking !== null}
+                onClick={() => setStatusTarget(product)}
+                aria-label={`${product.status === "ACTIVE" ? "Desativar" : "Reativar"} ${product.name}`}
+              >
+                {product.status === "ACTIVE" ? "Desativar" : "Reativar"}
+              </button>
+            )}
             <button
               className="product-remove-button"
               type="button"
-              disabled={checking !== null || removing}
+              disabled={checking !== null || removing || changingStatus}
               onClick={() => void requestRemoval(product)}
               aria-label={`Remover ${product.name}`}
             >
@@ -200,17 +236,17 @@ function ProductsList() {
         <select
           aria-label="Status"
           value={status}
-          onChange={(e) => setStatus(e.target.value)}
+          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
         >
           <option value="">Todos os status</option>
-          {["ACTIVE", "INACTIVE", "DISCONTINUED"].map((s) => (
-            <option key={s}>{s}</option>
+          {(["ACTIVE", "INACTIVE", "DISCONTINUED"] as ProductStatus[]).map((s) => (
+            <option key={s} value={s}>{statusLabels[s]}</option>
           ))}
         </select>
         <select
           aria-label="Unidade"
           value={unit}
-          onChange={(e) => setUnit(e.target.value)}
+          onChange={(e) => { setUnit(e.target.value); setPage(1); }}
         >
           <option value="">Todas unidades</option>
           {[
@@ -238,14 +274,15 @@ function ProductsList() {
           type="button"
           onClick={() => {
             setSearch("");
-            setStatus("");
+            setStatus("ACTIVE");
             setUnit("");
+            setPage(1);
           }}
         >
           Limpar
         </button>
       </div>
-      {view === "grouped" && <p className="muted products-group-hint">A busca e os filtros encontram grupos; a unidade e seus kits aparecem juntos.</p>}
+      {view === "grouped" && <p className="muted products-group-hint">A busca encontra grupos de produtos e kits. O filtro de status mostra apenas os produtos com o status selecionado.</p>}
       {loading ? (
         <p>Carregando...</p>
       ) : error ? (
@@ -306,6 +343,26 @@ function ProductsList() {
           <p>Esta ação não pode ser desfeita.</p>
         </ConfirmModal>
       </div>
+      <ConfirmModal
+        open={statusTarget !== null}
+        title={statusTarget?.status === "ACTIVE" ? "Desativar produto" : "Reativar produto"}
+        confirmLabel={statusTarget?.status === "ACTIVE" ? "Desativar" : "Reativar"}
+        busy={changingStatus}
+        onCancel={() => { if (!changingStatus) setStatusTarget(null); }}
+        onConfirm={() => void confirmStatusChange()}
+      >
+        <p>
+          {statusTarget?.status === "ACTIVE" ? "Deseja desativar" : "Deseja reativar"}{" "}
+          <strong>{statusTarget?.sku} — {statusTarget?.name}</strong>?
+        </p>
+        {statusTarget?.status === "ACTIVE" && <p>O cadastro e o histórico serão preservados. Kits que usam este produto podem ficar indisponíveis. Anúncios nos marketplaces não serão pausados automaticamente.</p>}
+      </ConfirmModal>
+      <ErrorDialog
+        open={Boolean(statusError)}
+        title="Não foi possível alterar o status"
+        message={statusError}
+        onClose={() => setStatusError("")}
+      />
       <div className="product-removal-error">
         <ErrorDialog
           open={removalError !== null}
